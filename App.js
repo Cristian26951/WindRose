@@ -520,7 +520,7 @@ export default function App() {
           <>
             <Text style={styles.title}>Datos del comprador</Text>
             <Text style={[styles.muted, { marginBottom: 10 }]}>
-              Compra simulada: no pedimos tarjetas, contraseñas ni documentos.
+              Datos de compra
             </Text>
             {FIELDS.map(([key, label]) => (
               <TextInput
@@ -552,7 +552,7 @@ export default function App() {
               total={total}
             />
             <Pressable style={styles.btn} onPress={confirmPurchase}>
-              <Text style={styles.white}>Confirmar compra simulada</Text>
+              <Text style={styles.white}>Confirmar compra</Text>
             </Pressable>
             <Pressable onPress={() => setScreen("checkout")}>
               <Text style={styles.link}>Editar datos</Text>
@@ -593,9 +593,7 @@ export default function App() {
             <Text style={styles.title}>Pedido {selectedOrder.code}</Text>
             <Text style={styles.muted}>Fecha: {selectedOrder.date}</Text>
             <OrderSummary {...selectedOrder} />
-            <Text style={styles.note}>
-              Simulación académica: no se realizó ningún cobro real.
-            </Text>
+            <Text style={styles.note}>Se realizo exitosamente</Text>
             <Pressable onPress={() => setScreen("history")}>
               <Text style={styles.link}>Volver al historial</Text>
             </Pressable>

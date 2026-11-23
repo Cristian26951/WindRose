@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   StyleSheet,
   Text,
@@ -120,6 +121,7 @@ const TABS = [
   ["favorites", "Favoritos"],
   ["cart", "Carrito"],
   ["history", "Pedidos"],
+  ["seller", "Vendedor"],
 ];
 const FIELDS = [
   ["name", "Nombre completo"],
@@ -129,6 +131,92 @@ const FIELDS = [
 ];
 const SHIPPING_COST = 8000;
 const FREE_SHIPPING_FROM = 150000;
+
+const COUPONS = { BIENVENIDO10: 0.1 };
+
+const SELLER_CATEGORIES = CATEGORIES.filter((c) => c !== "Todas");
+const EMPTY_FORM = {
+  nombre: "",
+  categoria: "",
+  precio: "",
+  stock: "",
+  descripcion: "",
+};
+
+const STORAGE_KEY = "windrose_state_v1";
+
+const isInt = (n) => typeof n === "number" && Number.isInteger(n);
+
+function sanitizeProducts(list) {
+  if (!Array.isArray(list)) return INITIAL_PRODUCTS;
+  const ids = [];
+  const valid = [];
+  list.forEach((p) => {
+    if (
+      !p ||
+      typeof p.id !== "string" ||
+      ids.includes(p.id) ||
+      typeof p.nombre !== "string" ||
+      !p.nombre.trim() ||
+      typeof p.categoria !== "string" ||
+      !isInt(p.precio) ||
+      p.precio <= 0 ||
+      !isInt(p.stock) ||
+      typeof p.descripcion !== "string"
+    )
+      return;
+    ids.push(p.id);
+    valid.push({ ...p, stock: Math.max(0, p.stock) });
+  });
+  return valid.length > 0 ? valid : INITIAL_PRODUCTS;
+}
+
+function sanitizeFavorites(list, prods) {
+  if (!Array.isArray(list)) return [];
+  return list.filter(
+    (id, idx) => list.indexOf(id) === idx && prods.some((p) => p.id === id),
+  );
+}
+
+function sanitizeCart(list, prods) {
+  if (!Array.isArray(list)) return [];
+  const result = [];
+  list.forEach((i) => {
+    const prod = i && prods.find((p) => p.id === i.id);
+    if (!prod || !isInt(i.qty) || i.qty <= 0 || prod.stock <= 0) return;
+    if (result.some((r) => r.id === prod.id)) return;
+    result.push({ id: prod.id, qty: Math.min(i.qty, prod.stock) });
+  });
+  return result;
+}
+
+function sanitizeOrders(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter(
+      (o) =>
+        o &&
+        typeof o.code === "string" &&
+        o.buyer &&
+        typeof o.buyer === "object" &&
+        Array.isArray(o.items) &&
+        typeof o.total === "number" &&
+        Number.isFinite(o.total) &&
+        o.total >= 0,
+    )
+    .map((o) => ({ ...o, discount: isInt(o.discount) ? o.discount : 0 }));
+}
+
+function sanitizeReviews(obj, prods) {
+  const result = {};
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return result;
+  prods.forEach((p) => {
+    if (!Array.isArray(obj[p.id])) return;
+    const valid = obj[p.id].filter((n) => isInt(n) && n >= 1 && n <= 5);
+    if (valid.length > 0) result[p.id] = valid;
+  });
+  return result;
+}
 
 const cop = (n) => `$${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
 
@@ -143,17 +231,30 @@ function Empty({ text, label, onPress }) {
   );
 }
 
-function Totals({ subtotal, shipping, total }) {
+function Totals({ subtotal, discount = 0, coupon, shipping, total }) {
   return (
     <View style={styles.box}>
       <Text>Subtotal: {cop(subtotal)}</Text>
+      {discount > 0 && (
+        <Text style={styles.discount}>
+          Descuento ({coupon}): -{cop(discount)}
+        </Text>
+      )}
       <Text>Envío: {shipping === 0 ? "GRATIS" : cop(shipping)}</Text>
       <Text style={styles.title}>Total: {cop(total)}</Text>
     </View>
   );
 }
 
-function OrderSummary({ buyer, items, subtotal, shipping, total }) {
+function OrderSummary({
+  buyer,
+  items,
+  subtotal,
+  discount,
+  coupon,
+  shipping,
+  total,
+}) {
   return (
     <>
       <Text style={styles.muted}>
@@ -169,7 +270,13 @@ function OrderSummary({ buyer, items, subtotal, shipping, total }) {
           </Text>
         ))}
       </View>
-      <Totals subtotal={subtotal} shipping={shipping} total={total} />
+      <Totals
+        subtotal={subtotal}
+        discount={discount}
+        coupon={coupon}
+        shipping={shipping}
+        total={total}
+      />
     </>
   );
 }
@@ -193,6 +300,15 @@ export default function App() {
     address: "",
   });
   const [toast, setToast] = useState("");
+  const [coupon, setCoupon] = useState(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState(null);
+  const [formError, setFormError] = useState("");
+  const [reviews, setReviews] = useState({});
+  const [rating, setRating] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+  const scrollRef = useRef(null);
 
   const filtered = products
     .filter(
@@ -214,9 +330,48 @@ export default function App() {
   const subtotal = cartItems.reduce((sum, i) => sum + i.precio * i.qty, 0);
   const shipping =
     cart.length === 0 || subtotal >= FREE_SHIPPING_FROM ? 0 : SHIPPING_COST;
-  const total = subtotal + shipping;
+  const discount =
+    coupon && subtotal > 0 ? Math.round(subtotal * COUPONS[coupon]) : 0;
+  const total = Math.max(0, subtotal - discount + shipping);
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
   const current = products.find((p) => p.id === selectedId);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          const prods = sanitizeProducts(data.products);
+          const cleanCart = sanitizeCart(data.cart, prods);
+          setProducts(prods);
+          setFavorites(sanitizeFavorites(data.favorites, prods));
+          setCart(cleanCart);
+          setOrders(sanitizeOrders(data.orders));
+          setReviews(sanitizeReviews(data.reviews, prods));
+          if (
+            typeof data.coupon === "string" &&
+            COUPONS[data.coupon] !== undefined &&
+            cleanCart.length > 0
+          )
+            setCoupon(data.coupon);
+        }
+      } catch (e) {}
+      setHydrated(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ products, favorites, cart, orders, reviews, coupon }),
+    ).catch(() => {});
+  }, [hydrated, products, favorites, cart, orders, reviews, coupon]);
+
+  useEffect(() => {
+    if (hydrated && cart.length === 0 && coupon) setCoupon(null);
+  }, [hydrated, cart, coupon]);
 
   const notify = (msg) => {
     setToast(msg);
@@ -225,6 +380,7 @@ export default function App() {
 
   const openDetail = (id) => {
     setSelectedId(id);
+    setRating(0);
     setBack(screen);
     setScreen("detail");
   };
@@ -262,6 +418,146 @@ export default function App() {
     setCart(cart.map((i) => (i.id === item.id ? { ...i, qty: next } : i)));
   };
 
+  const applyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (cart.length === 0)
+      return notify("Agrega productos al carrito para usar un cupón");
+    if (!code) return notify("Escribe un código de cupón");
+    if (COUPONS[code] === undefined) return notify("Cupón no válido");
+    setCoupon(code);
+    setCouponInput("");
+    notify(`Cupón ${code} aplicado`);
+  };
+
+  const removeCoupon = () => {
+    setCoupon(null);
+    notify("Cupón retirado");
+  };
+
+  const ratingOf = (id) => {
+    const list = reviews[id] || [];
+    return {
+      count: list.length,
+      avg: list.length ? list.reduce((a, n) => a + n, 0) / list.length : 0,
+    };
+  };
+
+  const saveReview = (id) => {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+      return notify("La valoración debe ser un entero entre 1 y 5");
+    setReviews({ ...reviews, [id]: [...(reviews[id] || []), rating] });
+    setRating(0);
+    notify("¡Gracias por tu valoración!");
+  };
+
+  const nextProductId = () => {
+    const max = products.reduce((m, p) => {
+      const n = parseInt(String(p.id).replace(/\D/g, ""), 10);
+      return Number.isFinite(n) && n > m ? n : m;
+    }, 0);
+    return `PROD-${String(max + 1).padStart(3, "0")}`;
+  };
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+    setFormError("");
+  };
+
+  const startEdit = (p) => {
+    setForm({
+      nombre: p.nombre,
+      categoria: p.categoria,
+      precio: String(p.precio),
+      stock: String(p.stock),
+      descripcion: p.descripcion,
+    });
+    setEditingId(p.id);
+    setFormError("");
+    if (scrollRef.current) scrollRef.current.scrollTo({ y: 0, animated: true });
+  };
+
+  const saveProduct = () => {
+    const nombre = form.nombre.trim();
+    const descripcion = form.descripcion.trim();
+    const precioTxt = form.precio.trim();
+    const stockTxt = form.stock.trim();
+    let error = "";
+    if (!nombre) error = "El nombre no puede estar vacío";
+    else if (
+      products.some(
+        (p) =>
+          p.id !== editingId && p.nombre.toLowerCase() === nombre.toLowerCase(),
+      )
+    )
+      error = "Ya existe un producto con ese nombre";
+    else if (!form.categoria) error = "Elige una categoría";
+    else if (!/^\d+$/.test(precioTxt) || Number(precioTxt) <= 0)
+      error = "El precio debe ser un número entero positivo";
+    else if (!/^\d+$/.test(stockTxt))
+      error = "El stock debe ser un número entero igual o mayor a 0";
+    else if (descripcion.length < 15)
+      error = "La descripción debe tener al menos 15 caracteres";
+
+    if (error) {
+      setFormError(error);
+      return notify(error);
+    }
+
+    const precio = Number(precioTxt);
+    const stock = Number(stockTxt);
+    if (editingId) {
+      setProducts(
+        products.map((p) =>
+          p.id === editingId
+            ? {
+                ...p,
+                nombre,
+                categoria: form.categoria,
+                precio,
+                stock,
+                descripcion,
+              }
+            : p,
+        ),
+      );
+      setCart(
+        cart
+          .map((i) =>
+            i.id === editingId ? { ...i, qty: Math.min(i.qty, stock) } : i,
+          )
+          .filter((i) => i.qty > 0),
+      );
+      notify("Producto actualizado");
+    } else {
+      setProducts([
+        ...products,
+        {
+          id: nextProductId(),
+          nombre,
+          categoria: form.categoria,
+          precio,
+          stock,
+          descripcion,
+        },
+      ]);
+      notify("Producto registrado en el catálogo");
+    }
+    resetForm();
+  };
+
+  const resetAll = () => {
+    AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+    setProducts(INITIAL_PRODUCTS);
+    setFavorites([]);
+    setCart([]);
+    setOrders([]);
+    setReviews({});
+    setCoupon(null);
+    resetForm();
+    notify("Datos restablecidos al estado inicial");
+  };
+
   const goToReview = () => {
     const missing = FIELDS.find(([key]) => !buyer[key].trim());
     if (missing) return notify(`Falta: ${missing[1]}`);
@@ -290,15 +586,30 @@ export default function App() {
         qty,
       })),
       subtotal,
+      discount,
+      coupon,
       shipping,
       total,
     };
     setOrders([order, ...orders]);
     setCart([]);
+    setCoupon(null);
     setSelectedOrder(order);
     setScreen("order");
     notify(`Pedido ${order.code} confirmado · simulación sin cobro real`);
   };
+
+  if (!hydrated)
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text style={styles.muted}>Cargando WINDROSE...</Text>
+      </View>
+    );
 
   return (
     <View style={styles.container}>
@@ -314,6 +625,8 @@ export default function App() {
 
       <ScrollView
         key={screen}
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
         style={styles.body}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
@@ -396,6 +709,12 @@ export default function App() {
                     <Text style={p.stock > 0 ? styles.green : styles.red}>
                       {p.stock > 0 ? `Stock: ${p.stock}` : "Agotado"}
                     </Text>
+                    {ratingOf(p.id).count > 0 && (
+                      <Text style={styles.small}>
+                        ★ {ratingOf(p.id).avg.toFixed(1)} (
+                        {ratingOf(p.id).count})
+                      </Text>
+                    )}
                   </Pressable>
                 ))}
               </View>
@@ -431,6 +750,32 @@ export default function App() {
                 {current.stock === 0 ? "Agotado" : "Agregar al carrito"}
               </Text>
             </Pressable>
+            <View style={styles.box}>
+              <Text style={styles.bold}>Valoraciones</Text>
+              <Text style={styles.muted}>
+                {ratingOf(current.id).count > 0
+                  ? `★ ${ratingOf(current.id).avg.toFixed(1)} de 5 · ${ratingOf(current.id).count} ${ratingOf(current.id).count === 1 ? "valoración" : "valoraciones"}`
+                  : "Aún no hay valoraciones"}
+              </Text>
+              <Text style={[styles.muted, { marginTop: 8 }]}>
+                Tu calificación:
+              </Text>
+              <View style={styles.row}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable key={n} onPress={() => setRating(n)}>
+                    <Text style={styles.starBig}>
+                      {n <= rating ? "★" : "☆"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                style={styles.btn}
+                onPress={() => saveReview(current.id)}
+              >
+                <Text style={styles.white}>Guardar valoración</Text>
+              </Pressable>
+            </View>
             <Pressable onPress={() => setScreen(back)}>
               <Text style={styles.link}>Volver</Text>
             </Pressable>
@@ -504,7 +849,46 @@ export default function App() {
                     </Pressable>
                   </View>
                 ))}
-                <Totals subtotal={subtotal} shipping={shipping} total={total} />
+                <View style={styles.box}>
+                  <Text style={styles.bold}>Cupón promocional</Text>
+                  {coupon ? (
+                    <View
+                      style={[styles.row, { marginTop: 8, marginBottom: 0 }]}
+                    >
+                      <Text style={[styles.discount, { flex: 1 }]}>
+                        Cupón {coupon} aplicado (-{COUPONS[coupon] * 100}%)
+                      </Text>
+                      <Pressable onPress={removeCoupon}>
+                        <Text style={styles.danger}>Quitar</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View
+                      style={[styles.row, { marginTop: 8, marginBottom: 0 }]}
+                    >
+                      <TextInput
+                        style={[
+                          styles.input,
+                          { flex: 1, marginBottom: 0, marginRight: 8 },
+                        ]}
+                        placeholder="Código de cupón"
+                        autoCapitalize="characters"
+                        value={couponInput}
+                        onChangeText={setCouponInput}
+                      />
+                      <Pressable style={styles.btnSmall} onPress={applyCoupon}>
+                        <Text style={styles.white}>Aplicar</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+                <Totals
+                  subtotal={subtotal}
+                  discount={discount}
+                  coupon={coupon}
+                  shipping={shipping}
+                  total={total}
+                />
                 <Pressable
                   style={styles.btn}
                   onPress={() => setScreen("checkout")}
@@ -548,6 +932,8 @@ export default function App() {
               buyer={buyer}
               items={cartItems}
               subtotal={subtotal}
+              discount={discount}
+              coupon={coupon}
               shipping={shipping}
               total={total}
             />
@@ -585,6 +971,106 @@ export default function App() {
                 </Pressable>
               ))
             )}
+          </>
+        )}
+
+        {screen === "seller" && (
+          <>
+            <Text style={styles.title}>Panel de vendedor</Text>
+            <Text style={styles.muted}>Registra o edita productos.</Text>
+            <View style={styles.box}>
+              <Text style={styles.bold}>
+                {editingId ? `Editando ${editingId}` : "Nuevo producto"}
+              </Text>
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]}
+                placeholder="Nombre del producto"
+                value={form.nombre}
+                onChangeText={(t) => setForm({ ...form, nombre: t })}
+              />
+              <Text style={styles.muted}>Categoría</Text>
+              <View style={[styles.wrap, { marginTop: 6 }]}>
+                {SELLER_CATEGORIES.map((cat) => (
+                  <Pressable
+                    key={cat}
+                    style={[
+                      styles.chip,
+                      { marginBottom: 6 },
+                      form.categoria === cat && styles.chipActive,
+                    ]}
+                    onPress={() => setForm({ ...form, categoria: cat })}
+                  >
+                    <Text
+                      style={
+                        form.categoria === cat ? styles.white : styles.chipText
+                      }
+                    >
+                      {cat}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Precio en COP (entero positivo)"
+                keyboardType="numeric"
+                value={form.precio}
+                onChangeText={(t) => setForm({ ...form, precio: t })}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Stock (entero, 0 o más)"
+                keyboardType="numeric"
+                value={form.stock}
+                onChangeText={(t) => setForm({ ...form, stock: t })}
+              />
+              <TextInput
+                style={[styles.input, styles.inputMulti]}
+                placeholder="Descripción (mínimo 15 caracteres)"
+                multiline
+                value={form.descripcion}
+                onChangeText={(t) => setForm({ ...form, descripcion: t })}
+              />
+              {formError !== "" && (
+                <Text style={styles.danger}>{formError}</Text>
+              )}
+              <Pressable style={styles.btn} onPress={saveProduct}>
+                <Text style={styles.white}>
+                  {editingId ? "Guardar cambios" : "Registrar producto"}
+                </Text>
+              </Pressable>
+              {editingId && (
+                <Pressable onPress={resetForm}>
+                  <Text style={styles.link}>Cancelar edición</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <Text style={[styles.title, { marginTop: 16 }]}>
+              Productos ({products.length})
+            </Text>
+            {products.map((p) => (
+              <View key={p.id} style={styles.itemRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bold}>
+                    {p.id} · {p.nombre}
+                  </Text>
+                  <Text style={styles.muted}>
+                    {p.categoria} · {cop(p.precio)} · Stock: {p.stock}
+                  </Text>
+                </View>
+                <Pressable onPress={() => startEdit(p)}>
+                  <Text style={styles.link}>Editar</Text>
+                </Pressable>
+              </View>
+            ))}
+            <Pressable onPress={resetAll}>
+              <Text
+                style={[styles.danger, { textAlign: "center", marginTop: 20 }]}
+              >
+                Restablecer datos
+              </Text>
+            </Pressable>
           </>
         )}
 
@@ -771,6 +1257,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   tab: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  navText: { fontSize: 13, fontWeight: "600", color: "#667085" },
+  navText: { fontSize: 12, fontWeight: "600", color: "#667085" },
   navActive: { color: PRIMARY },
+  discount: { color: "#2b9348", fontWeight: "600" },
+  starBig: { fontSize: 30, color: PRIMARY, marginRight: 6 },
+  btnSmall: {
+    backgroundColor: ACCENT,
+    paddingHorizontal: 16,
+    height: 42,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  wrap: { flexDirection: "row", flexWrap: "wrap" },
+  inputMulti: { height: 70, paddingTop: 10, textAlignVertical: "top" },
 });

@@ -1,763 +1,306 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
   View,
+  Image,
   TextInput,
   ScrollView,
   Pressable,
+  Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import logo from "./assets/Logo WindRose.png";
+import hero from "./assets/WindRose_hero.png";
 
 const INITIAL_PRODUCTS = [
   {
     id: "PROD-001",
     nombre: "Consola de videojuegos",
+    marca: "GameMax",
     categoria: "Tecnología",
     precio: 85000,
     stock: 5,
-    marca: "locktech",
+    descripcion: "Color negro de alto rendimiento, ideal para videojuegos.",
     variantes: [
-      { id: "negra", nombre: "Negra", precio: 85000, stock: 3 },
-      { id: "blanca", nombre: "Blanca", precio: 85000, stock: 2 },
+      { id: "PROD-001-N", nombre: "Negro", precio: 85000, stock: 5 },
+      { id: "PROD-001-B", nombre: "Blanco", precio: 90000, stock: 3 },
     ],
-    descripcion: "alto rendimiento, ideal para videojuegos.",
   },
   {
     id: "PROD-002",
     nombre: "Auriculares Inalámbricos",
+    marca: "SoundPro",
     categoria: "Tecnología",
     precio: 45000,
     stock: 10,
-    marca: "locktech",
-    variantes: [
-      { id: "negro", nombre: "Negro", precio: 45000, stock: 6 },
-      { id: "blanco", nombre: "Blanco", precio: 48000, stock: 4 },
-    ],
     descripcion: "Sonido estéreo de alta fidelidad con cancelación de ruido.",
+    variantes: [
+      { id: "PROD-002-N", nombre: "Negro", precio: 45000, stock: 10 },
+      { id: "PROD-002-A", nombre: "Azul", precio: 47000, stock: 0 },
+    ],
   },
   {
     id: "PROD-003",
     nombre: "Tapetes para carro",
+    marca: "AutoClean",
     categoria: "Automotriz",
     precio: 114000,
     stock: 36,
-    marca: "oruseng",
     descripcion:
       "Tapetes de goma de alta resistencia para el piso del vehículo.",
   },
   {
     id: "PROD-004",
     nombre: "Nevera manija integrada",
+    marca: "ColdHouse",
     categoria: "Hogar",
     precio: 1800000,
     stock: 42,
-    marca: "hosekep",
     descripcion: "Nevera moderna con dispensador de agua y bajo consumo.",
   },
   {
     id: "PROD-005",
     nombre: "Aspiradora de succión",
+    marca: "CleanMax",
     categoria: "Automotriz",
     precio: 215000,
     stock: 53,
-    marca: "oruseng",
     descripcion: "Aspiradora portátil con cable y succión ciclónica potente.",
   },
   {
     id: "PROD-006",
     nombre: "Set de fundas para asientos",
+    marca: "AutoClean",
     categoria: "Automotriz",
     precio: 230000,
     stock: 24,
-    marca: "oruseng",
     descripcion: "Set completo de fundas protectoras para asientos de auto.",
   },
   {
     id: "PROD-007",
     nombre: "SmartWatch",
+    marca: "FitTech",
     categoria: "Tecnología",
     precio: 600000,
     stock: 40,
-    marca: "locktech",
     descripcion:
       "Reloj inteligente multifunción con notificaciones y sensores.",
+    variantes: [
+      { id: "PROD-007-P", nombre: "Negro 40 mm", precio: 600000, stock: 40 },
+      { id: "PROD-007-G", nombre: "Negro 44 mm", precio: 650000, stock: 8 },
+      { id: "PROD-007-R", nombre: "Correa roja", precio: 620000, stock: 0 },
+    ],
   },
   {
     id: "PROD-008",
     nombre: "Licuadora",
+    marca: "VitaBlend",
     categoria: "Hogar",
     precio: 500000,
     stock: 63,
-    marca: "hosekep",
     descripcion: "Licuadora profesional con ajuste de velocidad variable.",
   },
   {
     id: "PROD-009",
     nombre: "Monitor de frecuencia cardíaca",
+    marca: "FitTech",
     categoria: "Deportes",
     precio: 720000,
     stock: 18,
-    marca: "liftrun",
     descripcion:
       "Monitor deportivo que brinda datos exactos de pulso cardíaco.",
   },
   {
     id: "PROD-010",
     nombre: "Lavadora",
+    marca: "ColdHouse",
     categoria: "Hogar",
     precio: 800000,
     stock: 27,
-    marca: "hosekep",
     descripcion: "Lavadora digital de gran capacidad y ahorro energético.",
   },
   {
     id: "PROD-011",
     nombre: "Kit de mancuernas",
+    marca: "ForceSport",
     categoria: "Deportes",
     precio: 300000,
     stock: 55,
-    marca: "liftrun",
-    variantes: [
-      { id: "azul", nombre: "Azul", precio: 300000, stock: 30 },
-      { id: "rojo", nombre: "Rojo", precio: 315000, stock: 25 },
-    ],
     descripcion: "Mancuernas ajustables con discos de hierro resistentes.",
   },
   {
     id: "PROD-012",
     nombre: "Bandas elásticas",
+    marca: "ForceSport",
     categoria: "Deportes",
     precio: 60000,
     stock: 78,
-    marca: "liftrun",
-    variantes: [
-      { id: "ligera", nombre: "Ligera", precio: 60000, stock: 40 },
-      { id: "fuerte", nombre: "Fuerte", precio: 68000, stock: 38 },
-    ],
     descripcion: "Bandas elásticas de material resistente para entrenamiento.",
   },
 ];
 
 const CATEGORIES = ["Todas", "Tecnología", "Automotriz", "Hogar", "Deportes"];
-const BRAND_BY_CATEGORY = {
-  Tecnología: "locktech",
-  Automotriz: "oruseng",
-  Hogar: "hosekep",
-  Deportes: "liftrun",
-};
 const SORTS = [
   ["asc", "Menor a mayor"],
   ["desc", "Mayor a menor"],
 ];
 const TABS = [
-  ["home", "Inicio"],
-  ["favorites", "Favoritos"],
-  ["cart", "Carrito"],
-  ["history", "Pedidos"],
-  ["compare", "Comparar"],
-  ["addresses", "Direcciones"],
-  ["notifications", "Avisos"],
-  ["help", "Ayuda"],
-  ["seller", "Vendedor"],
+  ["home", "Inicio", "⌂"],
+  ["favorites", "Favoritos", "♡"],
+  ["compare", "Comparar", "⇄"],
+  ["cart", "Carrito", "🛒"],
+  ["history", "Pedidos", "▤"],
+  ["more", "Más", "☰"],
 ];
-const FIELDS = [
-  ["name", "Nombre completo"],
-  ["phone", "Teléfono"],
-];
-const SHIPPING_COST = 8000;
-const FREE_SHIPPING_FROM = 150000;
-const SHIPPING_RATES = {
-  Mosquera: { standard: 6000, express: 10000 },
-  Funza: { standard: 8000, express: 12000 },
-  Madrid: { standard: 10000, express: 14000 },
+const SHIPPING_TARIFFS = {
+  Mosquera: { standard: 6000, express: 10000, days: "1 a 2 días" },
+  Funza: { standard: 8000, express: 12000, days: "1 a 2 días" },
+  Madrid: { standard: 10000, express: 14000, days: "2 a 3 días" },
 };
-const DELIVERY_ESTIMATE = "1 a 2 días";
-
-const COUPONS = { BIENVENIDO10: 0.1 };
-
-const SELLER_CATEGORIES = CATEGORIES.filter((c) => c !== "Todas");
-const EMPTY_FORM = {
-  nombre: "",
-  categoria: "",
-  precio: "",
-  stock: "",
-  descripcion: "",
-};
-
-const STORAGE_KEY = "windrose_state_v1";
-const EMPTY_ADDRESS = { alias: "", city: "", reference: "" };
-const SUPPORT_REASONS = ["Entrega", "Producto", "Otro"];
-const ORDER_STATES = ["Confirmado", "Preparando", "En camino", "Entregado"];
-
-const isInt = (n) => typeof n === "number" && Number.isInteger(n);
-
-function sanitizeProducts(list) {
-  if (!Array.isArray(list)) return INITIAL_PRODUCTS;
-  const ids = [];
-  const valid = [];
-  list.forEach((p) => {
-    if (
-      !p ||
-      typeof p.id !== "string" ||
-      ids.includes(p.id) ||
-      typeof p.nombre !== "string" ||
-      !p.nombre.trim() ||
-      typeof p.categoria !== "string" ||
-      !isInt(p.precio) ||
-      p.precio <= 0 ||
-      !isInt(p.stock) ||
-      typeof p.descripcion !== "string" ||
-      (p.variantes !== undefined &&
-        (!Array.isArray(p.variantes) ||
-          p.variantes.some(
-            (v) =>
-              !v ||
-              typeof v.id !== "string" ||
-              typeof v.nombre !== "string" ||
-              !isInt(v.precio) ||
-              v.precio <= 0 ||
-              !isInt(v.stock) ||
-              v.stock < 0,
-          )))
-    )
-      return;
-    ids.push(p.id);
-    const initialVariants = INITIAL_PRODUCTS.find(
-      (product) => product.id === p.id,
-    )?.variantes;
-    const variants =
-      p.variantes ||
-      (initialVariants
-        ? initialVariants.map((variant, index) => ({
-            ...variant,
-            stock: index === 0 ? Math.max(0, p.stock) : 0,
-          }))
-        : undefined);
-    valid.push({
-      ...p,
-      marca: BRAND_BY_CATEGORY[p.categoria] || "Sin marca",
-      variantes: variants,
-      stock: Array.isArray(variants)
-        ? variants.reduce((sum, variant) => sum + variant.stock, 0)
-        : Math.max(0, p.stock),
-    });
-  });
-  return valid.length > 0 ? valid : INITIAL_PRODUCTS;
-}
-
-function sanitizeFavorites(list, prods) {
-  if (!Array.isArray(list)) return [];
-  return list.filter(
-    (id, idx) => list.indexOf(id) === idx && prods.some((p) => p.id === id),
-  );
-}
-
-function sanitizeCart(list, prods) {
-  if (!Array.isArray(list)) return [];
-  const result = [];
-  list.forEach((i) => {
-    const prod = i && prods.find((p) => p.id === i.id);
-    const variant =
-      prod &&
-      Array.isArray(prod.variantes) &&
-      (prod.variantes.find((v) => v.id === i.variantId) ||
-        (i.variantId == null ? prod.variantes[0] : null));
-    const stock = variant ? variant.stock : prod && prod.stock;
-    if (
-      !prod ||
-      !isInt(i.qty) ||
-      i.qty <= 0 ||
-      stock <= 0 ||
-      (Array.isArray(prod.variantes) && !variant)
-    )
-      return;
-    const existing = result.find(
-      (r) => r.id === prod.id && r.variantId === (variant ? variant.id : null),
-    );
-    if (existing) {
-      existing.qty = Math.min(existing.qty + i.qty, stock);
-      return;
-    }
-    result.push({
-      id: prod.id,
-      variantId: variant ? variant.id : null,
-      unitPrice:
-        isInt(i.unitPrice) && i.unitPrice > 0
-          ? i.unitPrice
-          : variant
-            ? variant.precio
-            : prod.precio,
-      qty: Math.min(i.qty, stock),
-    });
-  });
-  return result;
-}
-
-function sanitizeOrders(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter(
-      (o) =>
-        o &&
-        typeof o.code === "string" &&
-        o.buyer &&
-        typeof o.buyer === "object" &&
-        Array.isArray(o.items) &&
-        typeof o.total === "number" &&
-        Number.isFinite(o.total) &&
-        o.total >= 0,
-    )
-    .map((o) => {
-      const items = o.items.filter(
-        (item) =>
-          item &&
-          typeof item.id === "string" &&
-          typeof item.nombre === "string" &&
-          isInt(item.precio) &&
-          item.precio > 0 &&
-          isInt(item.qty) &&
-          item.qty > 0,
-      );
-      const status = [
-        ...ORDER_STATES,
-        "Cancelado",
-      ].includes(o.status)
-        ? o.status
-        : "Confirmado";
-      const timeline = Array.isArray(o.timeline)
-        ? o.timeline.filter(
-            (event) =>
-              event &&
-              [...ORDER_STATES, "Cancelado"].includes(event.status) &&
-              typeof event.date === "string",
-          )
-        : [];
-      return {
-        ...o,
-        items,
-        status,
-        discount: isInt(o.discount) && o.discount >= 0 ? o.discount : 0,
-        timeline:
-          timeline.length > 0
-            ? timeline
-            : [{ status: "Confirmado", date: o.date || "" }],
-      };
-    });
-}
-
-function sanitizeAddresses(list) {
-  if (!Array.isArray(list)) return [];
-  const valid = list
-    .filter(
-      (item) =>
-        item &&
-        typeof item.id === "string" &&
-        list.findIndex((candidate) => candidate && candidate.id === item.id) ===
-          list.indexOf(item) &&
-        typeof item.alias === "string" &&
-        Object.prototype.hasOwnProperty.call(SHIPPING_RATES, item.city) &&
-        typeof item.reference === "string",
-    );
-  const primaryIndex = valid.findIndex((item) => item.primary === true);
-  return valid.map((item, index) => ({
-    ...item,
-    primary: index === (primaryIndex < 0 ? 0 : primaryIndex),
-  }));
-}
-
-function sanitizeNotifications(items) {
-  if (!Array.isArray(items)) return [];
-  return items.filter(
-    (item, index) =>
-      item &&
-      typeof item.id === "string" &&
-      typeof item.title === "string" &&
-      typeof item.message === "string" &&
-      typeof item.date === "string" &&
-      items.findIndex((candidate) => candidate && candidate.id === item.id) ===
-        index,
-  ).map((item) => ({ ...item, read: item.read === true }));
-}
-
-function sanitizeQuestions(questions, products) {
-  const result = {};
-  if (!questions || typeof questions !== "object" || Array.isArray(questions))
-    return result;
-  products.forEach((product) => {
-    if (!Array.isArray(questions[product.id])) return;
-    result[product.id] = questions[product.id].filter(
-      (question) =>
-        question &&
-        typeof question.id === "string" &&
-        typeof question.text === "string" &&
-        typeof question.date === "string" &&
-        ["Pendiente", "Respondida"].includes(question.status) &&
-        typeof question.answer === "string",
-    );
-  });
-  return result;
-}
-
-function sanitizeReviews(obj, prods) {
-  const result = {};
-  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return result;
-  prods.forEach((p) => {
-    if (!Array.isArray(obj[p.id])) return;
-    const valid = obj[p.id].filter((n) => isInt(n) && n >= 1 && n <= 5);
-    if (valid.length > 0) result[p.id] = valid;
-  });
-  return result;
-}
+const STORAGE_KEY = "@windrose_session";
 
 const cop = (n) => `$${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
-
-function ActionButton({
-  children,
-  onPress,
-  small = false,
-  disabled = false,
-  style,
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        small ? styles.btnSmall : styles.btn,
-        disabled && styles.btnOff,
-        style,
-      ]}
-    >
-      <Text style={styles.buttonText}>{children}</Text>
-    </Pressable>
-  );
-}
-
-function ChoiceChip({ children, selected, onPress, style }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[styles.chip, selected && styles.chipActive, style]}
-    >
-      <Text style={selected ? styles.chipSelectedText : styles.chipText}>
-        {children}
-      </Text>
-    </Pressable>
-  );
-}
 
 function Empty({ text, label, onPress }) {
   return (
     <View style={styles.empty}>
       <Text style={styles.muted}>{text}</Text>
-      <Pressable accessibilityRole="button" onPress={onPress}>
+      <Pressable onPress={onPress}>
         <Text style={styles.link}>{label}</Text>
       </Pressable>
     </View>
   );
 }
 
-function Totals({ subtotal, discount = 0, coupon, shipping, total }) {
+function Totals({ subtotal, shipping, total }) {
   return (
     <View style={styles.box}>
       <Text>Subtotal: {cop(subtotal)}</Text>
-      {discount > 0 && (
-        <Text style={styles.discount}>
-          Descuento ({coupon}): -{cop(discount)}
-        </Text>
-      )}
       <Text>Envío: {shipping === 0 ? "GRATIS" : cop(shipping)}</Text>
       <Text style={styles.title}>Total: {cop(total)}</Text>
     </View>
   );
 }
 
-function OrderSummary({
-  buyer,
-  items,
-  subtotal,
-  discount,
-  coupon,
-  shipping,
-  total,
-}) {
+function OrderSummary({ buyer, items, subtotal, shipping, total }) {
   return (
     <>
       <Text style={styles.muted}>
         Cliente: {buyer.name} ({buyer.phone})
       </Text>
       <Text style={styles.muted}>
-        Entrega: {buyer.addressAlias ? `${buyer.addressAlias} · ` : ""}
-        {buyer.city}, {buyer.address}
+        Entrega: {buyer.city}, {buyer.address}
       </Text>
       <View style={styles.box}>
         {items.map((i) => (
-          <Text key={`${i.id}-${i.variantId || "base"}`}>
+          <Text key={i.id}>
             • {i.nombre} x{i.qty} — {cop(i.precio)} c/u
           </Text>
         ))}
       </View>
-      {buyer.deliveryMode && (
-        <Text style={styles.muted}>
-          Envío {buyer.deliveryMode === "express" ? "exprés" : "estándar"} ·{" "}
-          {buyer.deliveryEstimate || DELIVERY_ESTIMATE}
-        </Text>
-      )}
-      <Totals
-        subtotal={subtotal}
-        discount={discount}
-        coupon={coupon}
-        shipping={shipping}
-        total={total}
-      />
+      <Totals subtotal={subtotal} shipping={shipping} total={total} />
     </>
   );
 }
 
 export default function App() {
   const [screen, setScreen] = useState("home");
+  const [isHydrated, setIsHydrated] = useState(false);
   const [back, setBack] = useState("home");
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [favorites, setFavorites] = useState([]);
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [comparison, setComparison] = useState([]);
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [addressForm, setAddressForm] = useState(EMPTY_ADDRESS);
-  const [editingAddressId, setEditingAddressId] = useState(null);
-  const [deliveryMode, setDeliveryMode] = useState("standard");
-  const [notifications, setNotifications] = useState([]);
-  const [restockSubscriptions, setRestockSubscriptions] = useState([]);
-  const [questions, setQuestions] = useState({});
-  const [questionInput, setQuestionInput] = useState("");
-  const [supportCases, setSupportCases] = useState([]);
-  const [supportOrderId, setSupportOrderId] = useState(null);
-  const [supportReason, setSupportReason] = useState("Entrega");
-  const [supportDescription, setSupportDescription] = useState("");
-  const [brandFilter, setBrandFilter] = useState("Todas");
-  const [availableOnly, setAvailableOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todas");
   const [sort, setSort] = useState("none");
+  const [brandFilter, setBrandFilter] = useState("Todas");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [comparison, setComparison] = useState([]);
   const [buyer, setBuyer] = useState({
     name: "",
     phone: "",
     city: "",
     address: "",
   });
-  const [toast, setToast] = useState("");
-  const [coupon, setCoupon] = useState(null);
+  const [questions, setQuestions] = useState({});
+  const [questionText, setQuestionText] = useState("");
+  const [addresses, setAddresses] = useState([]);
+  const [addressForm, setAddressForm] = useState({
+    alias: "",
+    municipality: "Mosquera",
+    reference: "",
+  });
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [shippingMode, setShippingMode] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [helpCases, setHelpCases] = useState([]);
+  const [helpOrder, setHelpOrder] = useState("");
+  const [helpReason, setHelpReason] = useState("Entrega");
+  const [helpText, setHelpText] = useState("");
   const [couponInput, setCouponInput] = useState("");
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState(null);
-  const [formError, setFormError] = useState("");
-  const [reviews, setReviews] = useState({});
-  const [rating, setRating] = useState(0);
-  const [selectedVariantId, setSelectedVariantId] = useState(null);
-  const [selectedQty, setSelectedQty] = useState(1);
-  const [cancelPrompt, setCancelPrompt] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-  const scrollRef = useRef(null);
-  const toastTimer = useRef(null);
-  const cancelledOrderCodes = useRef(new Set());
-
-  const brands = useMemo(
-    () => [...new Set(products.map((product) => product.marca))],
-    [products],
-  );
-  const filtered = useMemo(
-    () =>
-      products
-        .filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(search.trim().toLowerCase()) &&
-        (category === "Todas" || p.categoria === category) &&
-        (brandFilter === "Todas" || p.marca === brandFilter) &&
-        (!availableOnly || p.stock > 0),
-        )
-        .sort((a, b) =>
-          sort === "asc"
-            ? a.precio - b.precio
-            : sort === "desc"
-              ? b.precio - a.precio
-              : 0,
-        ),
-    [
-      products,
-      search,
-      category,
-      brandFilter,
-      availableOnly,
-      sort,
-    ],
-  );
-  const cartItems = useMemo(
-    () =>
-      cart
-        .map((item) => {
-          const product = products.find((entry) => entry.id === item.id);
-          if (!product) return null;
-          const variant =
-            product.variantes &&
-            product.variantes.find((entry) => entry.id === item.variantId);
-          return {
-            ...product,
-            qty: item.qty,
-            variantId: item.variantId || null,
-            variantName: variant ? variant.nombre : null,
-            precio: item.unitPrice || (variant ? variant.precio : product.precio),
-            stock: variant ? variant.stock : product.stock,
-            nombre: variant
-              ? `${product.nombre} (${variant.nombre})`
-              : product.nombre,
-          };
-        })
-        .filter(Boolean),
-    [cart, products],
-  );
-  const subtotal = useMemo(
-    () =>
-      cartItems.reduce(
-        (sum, item) => sum + item.precio * item.qty,
-        0,
-      ),
-    [cartItems],
-  );
-  const activeAddress = addresses.find(
-    (address) => address.id === selectedAddressId,
-  );
-  const shipping =
-    cart.length === 0
-      ? 0
-      : subtotal >= FREE_SHIPPING_FROM
-        ? 0
-        : activeAddress && SHIPPING_RATES[activeAddress.city]
-        ? SHIPPING_RATES[activeAddress.city][deliveryMode]
-        : SHIPPING_COST;
-  const discount =
-    coupon && subtotal > 0 ? Math.round(subtotal * COUPONS[coupon]) : 0;
-  const total = Math.max(0, subtotal - discount + shipping);
-  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
-  const current = products.find((p) => p.id === selectedId);
-  const editingProduct = products.find((p) => p.id === editingId);
-  const selectedVariant =
-    current &&
-    current.variantes &&
-    current.variantes.find((variant) => variant.id === selectedVariantId);
-  const relatedProducts = useMemo(
-    () =>
-      current
-        ? products
-            .filter(
-              (product) =>
-                product.id !== current.id &&
-                product.categoria === current.categoria &&
-                product.stock > 0,
-            )
-            .slice(0, 4)
-        : [],
-    [current, products],
-  );
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [ratings, setRatings] = useState({});
+  const [ratingDraft, setRatingDraft] = useState(5);
+  const [sellerForm, setSellerForm] = useState({
+    nombre: "",
+    marca: "",
+    categoria: "Tecnología",
+    precio: "",
+    stock: "",
+    descripcion: "",
+  });
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const data = JSON.parse(raw);
-          if (!data || typeof data !== "object")
-            throw new Error("El estado guardado no tiene un formato válido.");
-          const prods = sanitizeProducts(data.products);
-          const cleanCart = sanitizeCart(data.cart, prods);
-          setProducts(prods);
-          setFavorites(sanitizeFavorites(data.favorites, prods));
-          setCart(cleanCart);
-          const cleanOrders = sanitizeOrders(data.orders);
-          setOrders(cleanOrders);
-          cancelledOrderCodes.current = new Set(
-            cleanOrders
-              .filter((order) => order.status === "Cancelado")
-              .map((order) => order.code),
-          );
-          setReviews(sanitizeReviews(data.reviews, prods));
-          const cleanAddresses = sanitizeAddresses(data.addresses);
-          setAddresses(cleanAddresses);
-          setSelectedAddressId(
-            cleanAddresses.some((address) => address.id === data.selectedAddressId)
-              ? data.selectedAddressId
-              : cleanAddresses.find((address) => address.primary)?.id || null,
-          );
-          setComparison(
-            Array.isArray(data.comparison)
-              ? data.comparison
-                  .filter((id, index) => prods.some((p) => p.id === id) &&
-                    data.comparison.indexOf(id) === index)
-                  .slice(0, 3)
-              : [],
-          );
-          setNotifications(sanitizeNotifications(data.notifications));
-          setRestockSubscriptions(
-            Array.isArray(data.restockSubscriptions)
-              ? data.restockSubscriptions.filter(
-                  (entry, index) =>
-                    entry &&
-                    typeof entry.id === "string" &&
-                    typeof entry.productId === "string" &&
-                    data.restockSubscriptions.findIndex(
-                      (candidate) =>
-                        candidate && candidate.id === entry.id,
-                    ) === index &&
-                    prods.some((product) => product.id === entry.productId) &&
-                    (entry.variantId === null ||
-                      prods
-                        .find((product) => product.id === entry.productId)
-                        .variantes?.some(
-                          (variant) => variant.id === entry.variantId,
-                        )),
-                )
-              : [],
-          );
-          setQuestions(sanitizeQuestions(data.questions, prods));
-          setSupportCases(
-            Array.isArray(data.supportCases)
-              ? data.supportCases.filter(
-                  (item) =>
-                    item &&
-                    typeof item.id === "string" &&
-                    typeof item.orderCode === "string" &&
-                    typeof item.description === "string" &&
-                    SUPPORT_REASONS.includes(item.reason) &&
-                    ["Abierto", "Respondido"].includes(item.status),
-                )
-              : [],
-          );
-          if (
-            typeof data.deliveryMode === "string" &&
-            ["standard", "express"].includes(data.deliveryMode)
-          )
-            setDeliveryMode(data.deliveryMode);
-          if (
-            typeof data.coupon === "string" &&
-            COUPONS[data.coupon] !== undefined &&
-            cleanCart.length > 0
-          )
-            setCoupon(data.coupon);
+    let active = true;
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        if (!active) return;
+        if (!raw) {
+          setIsHydrated(true);
+          return;
         }
-      } catch (error) {
-        setToast(`No se pudieron recuperar los datos guardados: ${error.message}`);
-      }
-      setHydrated(true);
-    })();
+        try {
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved.products)) setProducts(saved.products);
+          if (Array.isArray(saved.favorites)) setFavorites(saved.favorites);
+          if (Array.isArray(saved.cart)) setCart(saved.cart);
+          if (Array.isArray(saved.orders)) setOrders(saved.orders);
+          if (Array.isArray(saved.addresses)) setAddresses(saved.addresses);
+          if (Array.isArray(saved.notifications))
+            setNotifications(saved.notifications);
+          if (Array.isArray(saved.subscriptions))
+            setSubscriptions(saved.subscriptions);
+          if (Array.isArray(saved.helpCases)) setHelpCases(saved.helpCases);
+          if (saved.ratings && typeof saved.ratings === "object")
+            setRatings(saved.ratings);
+        } catch {
+          notify("No se pudo recuperar la sesión local");
+        } finally {
+          setIsHydrated(true);
+        }
+      })
+      .catch(() => {
+        notify("No se pudo recuperar la sesión local");
+        setIsHydrated(true);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!isHydrated) return;
     AsyncStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -765,77 +308,92 @@ export default function App() {
         favorites,
         cart,
         orders,
-        reviews,
-        coupon,
-        comparison,
         addresses,
-        selectedAddressId,
-        deliveryMode,
         notifications,
-        restockSubscriptions,
-        questions,
-        supportCases,
+        subscriptions,
+        helpCases,
+        ratings,
       }),
-    ).catch((error) => {
-      setToast(`No se pudieron guardar los cambios: ${error.message}`);
-    });
+    ).catch(() => {});
   }, [
-    hydrated,
+    isHydrated,
     products,
     favorites,
     cart,
     orders,
-    reviews,
-    coupon,
-    comparison,
     addresses,
-    selectedAddressId,
-    deliveryMode,
     notifications,
-    restockSubscriptions,
-    questions,
-    supportCases,
+    subscriptions,
+    helpCases,
+    ratings,
   ]);
+
+  const productStock = (p) =>
+    p.variantes ? p.variantes.reduce((sum, v) => sum + v.stock, 0) : p.stock;
+  const invalidPriceRange =
+    minPrice !== "" && maxPrice !== "" && Number(minPrice) > Number(maxPrice);
+  const brands = [
+    "Todas",
+    ...new Set(products.map((p) => p.marca).filter(Boolean)),
+  ];
+  const filtered = products
+    .filter(
+      (p) =>
+        p.nombre.toLowerCase().includes(search.trim().toLowerCase()) &&
+        (category === "Todas" || p.categoria === category) &&
+        (brandFilter === "Todas" || p.marca === brandFilter) &&
+        (!availableOnly || productStock(p) > 0) &&
+        !invalidPriceRange &&
+        (minPrice === "" || p.precio >= Number(minPrice)) &&
+        (maxPrice === "" || p.precio <= Number(maxPrice)),
+    )
+    .sort((a, b) =>
+      sort === "asc"
+        ? a.precio - b.precio
+        : sort === "desc"
+          ? b.precio - a.precio
+          : 0,
+    );
+  const cartItems = cart.map((i) => {
+    const product = products.find((p) => p.id === i.productId);
+    const variant = i.variantId
+      ? product?.variantes?.find((v) => v.id === i.variantId)
+      : null;
+    return {
+      ...product,
+      cartId: i.cartId,
+      productId: i.productId,
+      variantId: i.variantId,
+      nombre: variant
+        ? `${product.nombre} - ${variant.nombre}`
+        : product?.nombre,
+      precio: variant?.precio ?? product?.precio,
+      stock: variant?.stock ?? product?.stock,
+      qty: i.qty,
+    };
+  });
+  const subtotal = cartItems.reduce((sum, i) => sum + i.precio * i.qty, 0);
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  const shipping =
+    selectedAddress &&
+    shippingMode &&
+    SHIPPING_TARIFFS[selectedAddress.municipality]?.[shippingMode]
+      ? SHIPPING_TARIFFS[selectedAddress.municipality][shippingMode]
+      : 0;
+  const discount = couponApplied ? Math.round(subtotal * 0.1) : 0;
+  const total = Math.max(0, subtotal - discount + shipping);
+  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0);
+  const unreadCount = notifications.filter((item) => !item.read).length;
+  const current = products.find((p) => p.id === selectedId);
 
   const notify = (msg) => {
     setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(""), 2500);
-  };
-
-  useEffect(
-    () => () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    },
-    [],
-  );
-
-  const addNotification = (id, title, message) => {
-    setNotifications((previous) =>
-      previous.some((item) => item.id === id)
-        ? previous
-        : [
-            {
-              id,
-              title,
-              message,
-              date: new Date().toLocaleString(),
-              read: false,
-            },
-            ...previous,
-          ],
-    );
+    setTimeout(() => setToast(""), 2500);
   };
 
   const openDetail = (id) => {
     setSelectedId(id);
-    setRating(0);
-    const product = products.find((entry) => entry.id === id);
-    setSelectedVariantId(
-      product && product.variantes ? product.variantes[0].id : null,
-    );
-    setSelectedQty(1);
-    setQuestionInput("");
+    setSelectedVariantId(null);
     setBack(screen);
     setScreen("detail");
   };
@@ -848,116 +406,16 @@ export default function App() {
     notify(isFav ? "Quitado de favoritos" : "Guardado en favoritos");
   };
 
-  const addToCart = (prod, variantId = null, quantity = 1) => {
-    if (prod.variantes && !variantId)
-      return notify("Selecciona una variante antes de agregar");
-    const variant =
-      prod.variantes && prod.variantes.find((entry) => entry.id === variantId);
-    const stock = variant ? variant.stock : prod.stock;
-    const price = variant ? variant.precio : prod.precio;
-    const item = cart.find(
-      (entry) =>
-        entry.id === prod.id && entry.variantId === (variant ? variant.id : null),
-    );
-    if (!Number.isInteger(quantity) || quantity <= 0)
-      return notify("La cantidad debe ser un entero positivo");
-    if (stock <= 0) return notify("Producto agotado");
-    if ((item ? item.qty : 0) + quantity > stock)
-      return notify(`Stock máximo disponible: ${stock}`);
-    setCart((previous) => {
-      const currentItem = previous.find(
-        (entry) =>
-          entry.id === prod.id &&
-          entry.variantId === (variant ? variant.id : null),
-      );
-      return currentItem
-        ? previous.map((entry) =>
-            entry === currentItem
-              ? { ...entry, qty: entry.qty + quantity }
-              : entry,
-          )
-        : [
-            ...previous,
-            {
-              id: prod.id,
-              variantId: variant ? variant.id : null,
-              unitPrice: price,
-              qty: quantity,
-            },
-          ];
-    });
-    notify("Agregado al carrito");
-  };
-
-  const removeFromCart = (id, variantId = null) => {
-    const nextCart = cart.filter(
-      (item) => !(item.id === id && item.variantId === variantId),
-    );
-    setCart(nextCart);
-    if (nextCart.length === 0) setCoupon(null);
-    notify("Producto eliminado del carrito");
-  };
-
-  const changeQty = (item, delta) => {
-    const next = item.qty + delta;
-    if (next <= 0) return removeFromCart(item.id, item.variantId);
-    if (next > item.stock) return notify(`Stock límite: ${item.stock}`);
-    setCart(
-      cart.map((entry) =>
-        entry.id === item.id && entry.variantId === item.variantId
-          ? { ...entry, qty: next }
-          : entry,
-      ),
-    );
-  };
-
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
-    if (cart.length === 0)
-      return notify("Agrega productos al carrito para usar un cupón");
-    if (!code) return notify("Escribe un código de cupón");
-    if (COUPONS[code] === undefined) return notify("Cupón no válido");
-    setCoupon(code);
-    setCouponInput("");
-    notify(`Cupón ${code} aplicado`);
-  };
-
-  const removeCoupon = () => {
-    setCoupon(null);
-    notify("Cupón retirado");
-  };
-
-  const ratingOf = (id) => {
-    const list = reviews[id] || [];
-    return {
-      count: list.length,
-      avg: list.length ? list.reduce((a, n) => a + n, 0) / list.length : 0,
-    };
-  };
-
-  const saveReview = (id) => {
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5)
-      return notify("La valoración debe ser un entero entre 1 y 5");
-    setReviews({ ...reviews, [id]: [...(reviews[id] || []), rating] });
-    setRating(0);
-    notify("¡Gracias por tu valoración!");
-  };
-
-  const toggleComparison = (id) => {
+  const toggleCompare = (id) => {
     if (comparison.includes(id)) {
-      setComparison((previous) =>
-        previous.filter((productId) => productId !== id),
-      );
-      return notify("Producto retirado del comparador");
+      setComparison(comparison.filter((value) => value !== id));
+      notify("Producto retirado del comparador");
+    } else if (comparison.length >= 3) {
+      notify("El comparador permite máximo 3 productos");
+    } else {
+      setComparison([...comparison, id]);
+      notify("Producto agregado al comparador");
     }
-    if (comparison.length >= 3)
-      return notify("El comparador permite máximo 3 productos");
-    setComparison((previous) =>
-      previous.includes(id) || previous.length >= 3
-        ? previous
-        : [...previous, id],
-    );
-    notify("Producto agregado al comparador");
   };
 
   const resetCatalogFilters = () => {
@@ -965,239 +423,139 @@ export default function App() {
     setCategory("Todas");
     setBrandFilter("Todas");
     setAvailableOnly(false);
+    setMinPrice("");
+    setMaxPrice("");
     setSort("none");
   };
 
-  const saveAddress = () => {
-    const alias = addressForm.alias.trim();
-    const reference = addressForm.reference.trim();
-    if (!alias || !reference || !SHIPPING_RATES[addressForm.city])
-      return notify("Completa alias, municipio y referencia de entrega");
-    const id = editingAddressId || `address-${Date.now()}`;
-    const address = { id, alias, city: addressForm.city, reference };
-    setAddresses((previous) => {
-      if (editingAddressId)
-        return previous.map((item) =>
-          item.id === editingAddressId ? { ...item, ...address } : item,
-        );
-      const primary = previous.length === 0;
-      return [...previous, { ...address, primary }];
+  const addToCart = (prod) => {
+    const variant = prod.variantes?.find((v) => v.id === selectedVariantId);
+    if (prod.variantes && !variant) return notify("Selecciona una variante");
+    if (variant && variant.stock <= 0)
+      return notify("Esta variante está agotada");
+    if (!prod.variantes && prod.stock <= 0) return notify("Producto agotado");
+    const cartId = variant?.id ?? prod.id;
+    const stock = variant?.stock ?? prod.stock;
+    const item = cart.find((i) => i.cartId === cartId);
+    if (item && item.qty >= stock)
+      return notify(`Stock máximo alcanzado (${stock})`);
+    setCart(
+      item
+        ? cart.map((i) => (i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i))
+        : [
+            ...cart,
+            {
+              cartId,
+              productId: prod.id,
+              variantId: variant?.id ?? null,
+              qty: 1,
+            },
+          ],
+    );
+    notify("Agregado al carrito");
+  };
+
+  const removeFromCart = (cartId) => {
+    setCart(cart.filter((i) => i.cartId !== cartId));
+    notify("Producto eliminado del carrito");
+  };
+
+  const changeQty = (item, delta) => {
+    const next = item.qty + delta;
+    if (next <= 0) return removeFromCart(item.cartId);
+    if (next > item.stock) return notify(`Stock límite: ${item.stock}`);
+    setCart(
+      cart.map((i) => (i.cartId === item.cartId ? { ...i, qty: next } : i)),
+    );
+  };
+
+  const applyCoupon = () => {
+    if (!cart.length)
+      return notify("Agrega productos antes de aplicar un cupón");
+    if (couponInput.trim().toUpperCase() !== "BIENVENIDO10") {
+      setCouponApplied(false);
+      return notify("Cupón no válido. Verifica el código");
+    }
+    setCouponApplied(true);
+    notify("Cupón BIENVENIDO10 aplicado: 10% de descuento");
+  };
+
+  const saveRating = () => {
+    if (
+      !selectedId ||
+      !Number.isInteger(ratingDraft) ||
+      ratingDraft < 1 ||
+      ratingDraft > 5
+    ) {
+      return notify("La valoración debe ser un número entero entre 1 y 5");
+    }
+    setRatings((previous) => ({
+      ...previous,
+      [selectedId]: [...(previous[selectedId] || []), ratingDraft],
+    }));
+    notify("Valoración de demostración guardada");
+  };
+
+  const saveSellerProduct = () => {
+    const price = Number(sellerForm.precio);
+    const stock = Number(sellerForm.stock);
+    if (
+      !sellerForm.nombre.trim() ||
+      !sellerForm.marca.trim() ||
+      !sellerForm.descripcion.trim()
+    ) {
+      return notify("Completa nombre, marca y descripción");
+    }
+    if (
+      !Number.isFinite(price) ||
+      price <= 0 ||
+      !Number.isInteger(stock) ||
+      stock < 0
+    ) {
+      return notify(
+        "El precio debe ser positivo y el stock un entero no negativo",
+      );
+    }
+    if (editingProductId) {
+      setProducts((previous) =>
+        previous.map((item) =>
+          item.id === editingProductId
+            ? { ...item, ...sellerForm, precio: price, stock }
+            : item,
+        ),
+      );
+      notify("Producto actualizado");
+    } else {
+      const product = {
+        id: `PROD-${Date.now()}`,
+        ...sellerForm,
+        precio: price,
+        stock,
+      };
+      setProducts((previous) => [product, ...previous]);
+      notify("Producto creado en el catálogo");
+    }
+    setEditingProductId(null);
+    setSellerForm({
+      nombre: "",
+      marca: "",
+      categoria: "Tecnología",
+      precio: "",
+      stock: "",
+      descripcion: "",
     });
-    if (!selectedAddressId) setSelectedAddressId(id);
-    setAddressForm(EMPTY_ADDRESS);
-    setEditingAddressId(null);
-    notify(editingAddressId ? "Dirección actualizada" : "Dirección guardada");
   };
 
-  const selectAddress = (id) => {
-    setSelectedAddressId(id);
-    setAddresses((previous) =>
-      previous.map((address) => ({ ...address, primary: address.id === id })),
+  const markNotificationRead = (id) => {
+    setNotifications((previous) =>
+      previous.map((item) => (item.id === id ? { ...item, read: true } : item)),
     );
-    notify("Dirección principal actualizada");
   };
 
-  const addQuestion = () => {
-    const text = questionInput.trim();
-    if (text.length < 10)
-      return notify("La pregunta debe tener al menos 10 caracteres");
-    const question = {
-      id: `question-${Date.now()}`,
-      text,
-      date: new Date().toLocaleString(),
-      status: "Pendiente",
-      answer: "",
-    };
-    setQuestions((previous) => ({
-      ...previous,
-      [current.id]: [...(previous[current.id] || []), question],
-    }));
-    setQuestionInput("");
-    notify("Pregunta registrada en modo demostración");
-  };
-
-  const simulateQuestionAnswer = (questionId) => {
-    setQuestions((previous) => ({
-      ...previous,
-      [current.id]: (previous[current.id] || []).map((question) =>
-        question.id === questionId && question.status === "Pendiente"
-          ? {
-              ...question,
-              status: "Respondida",
-              answer:
-                "Respuesta de demostración: consulta las características del producto antes de comprar.",
-            }
-          : question,
-      ),
-    }));
-  };
-
-  const subscribeForRestock = (product, variantId = null) => {
-    const id = `${product.id}:${variantId || "base"}`;
-    if (restockSubscriptions.some((subscription) => subscription.id === id))
-      return notify("Ya recibirás un aviso para este artículo");
-    setRestockSubscriptions((previous) => [
-      ...previous,
-      { id, productId: product.id, variantId },
-    ]);
-    notify("Aviso de reposición activado");
-  };
-
-  const cancelRestockSubscription = (product, variantId = null) => {
-    const id = `${product.id}:${variantId || "base"}`;
-    setRestockSubscriptions((previous) =>
-      previous.filter((subscription) => subscription.id !== id),
-    );
-    notify("Aviso de reposición cancelado");
-  };
-
-  const simulateRestock = (product, variantId = null) => {
-    if (product.variantes && product.variantes.length && !variantId)
-      return notify("Selecciona una variante para reponer");
-    const targetVariant =
-      variantId &&
-      product.variantes &&
-      product.variantes.find((variant) => variant.id === variantId);
-    if (variantId && (!targetVariant || targetVariant.stock > 0))
-      return notify("Solo puedes reponer una variante agotada");
-    const matching = restockSubscriptions.filter(
-      (subscription) =>
-        subscription.productId === product.id &&
-        subscription.variantId === variantId,
-    );
-    const restockEventId = Date.now();
-    setProducts((previous) =>
-      previous.map((entry) => {
-        if (entry.id !== product.id) return entry;
-        if (!variantId) return { ...entry, stock: entry.stock + 5 };
-        const variantes = entry.variantes.map((variant) =>
-          variant.id === variantId
-            ? { ...variant, stock: variant.stock + 5 }
-            : variant,
-        );
-        return {
-          ...entry,
-          variantes,
-          stock: variantes.reduce((sum, variant) => sum + variant.stock, 0),
-        };
-      }),
-    );
-    matching.forEach((subscription) =>
-      addNotification(
-        `restock-${subscription.id}-${restockEventId}`,
-        "Producto disponible",
-        `${product.nombre}${variantId ? ` (${product.variantes.find((v) => v.id === variantId).nombre})` : ""} tiene nuevas unidades.`,
-      ),
-    );
-    setRestockSubscriptions((previous) =>
-      previous.filter((subscription) => !matching.includes(subscription)),
-    );
-    notify("Reposición simulada: se agregaron 5 unidades");
-  };
-
-  const advanceOrder = (order) => {
-    const index = ORDER_STATES.indexOf(order.status);
-    if (index < 0 || index >= ORDER_STATES.length - 1)
-      return notify("Este pedido ya no puede avanzar");
-    const status = ORDER_STATES[index + 1];
-    const event = { status, date: new Date().toLocaleString() };
-    const updated = {
-      ...order,
-      status,
-      timeline: [...(order.timeline || []), event],
-    };
-    setOrders((previous) =>
-      previous.map((item) => (item.code === order.code ? updated : item)),
-    );
-    setSelectedOrder(updated);
-    addNotification(
-      `order-${order.code}-${status}`,
-      "Actualización de pedido",
-      `${order.code}: ${status}`,
-    );
-    notify(`Estado actualizado: ${status}`);
-  };
-
-  const cancelOrder = (order) => {
-    if (cancelledOrderCodes.current.has(order.code) || order.status === "Cancelado")
-      return notify("Este pedido ya está cancelado");
-    if (!["Confirmado", "Preparando"].includes(order.status))
-      return notify("No es posible cancelar después de iniciar el envío");
-    cancelledOrderCodes.current.add(order.code);
-    const event = {
-      status: "Cancelado",
-      date: new Date().toLocaleString(),
-    };
-    const updated = {
-      ...order,
-      status: "Cancelado",
-      timeline: [...(order.timeline || []), event],
-    };
-    setProducts((previous) =>
-      previous.map((product) => {
-        const purchased = order.items.filter((item) => item.id === product.id);
-        if (purchased.length === 0) return product;
-        if (!product.variantes)
-          return {
-            ...product,
-            stock:
-              product.stock +
-              purchased.reduce((sum, item) => sum + item.qty, 0),
-          };
-        const variantes = product.variantes.map((variant) => ({
-          ...variant,
-          stock:
-            variant.stock +
-            purchased
-              .filter((item) => item.variantId === variant.id)
-              .reduce((sum, item) => sum + item.qty, 0),
-        }));
-        return {
-          ...product,
-          variantes,
-          stock: variantes.reduce((sum, variant) => sum + variant.stock, 0),
-        };
-      }),
-    );
-    setOrders((previous) =>
-      previous.map((item) => (item.code === order.code ? updated : item)),
-    );
-    setSelectedOrder(updated);
-    setCancelPrompt(false);
-    addNotification(
-      `order-${order.code}-Cancelado`,
-      "Pedido cancelado",
-      `${order.code}: se restituyó el inventario.`,
-    );
-    notify("Pedido cancelado; inventario restituido");
-  };
-
-  const createSupportCase = () => {
-    if (!supportOrderId) return notify("Selecciona un pedido");
-    const description = supportDescription.trim();
-    if (description.length < 15)
-      return notify("Describe el caso con al menos 15 caracteres");
-    const caseNumber = `CASO-${String(supportCases.length + 1).padStart(4, "0")}`;
-    setSupportCases((previous) => [
-      {
-        id: caseNumber,
-        orderCode: supportOrderId,
-        reason: supportReason,
-        description,
-        status: "Abierto",
-        answer: "",
-        date: new Date().toLocaleString(),
-      },
-      ...previous,
-    ]);
-    setSupportDescription("");
-    notify(`Solicitud ${caseNumber} registrada`);
-  };
-
-  const simulateSupportReply = (caseId) => {
-    setSupportCases((previous) =>
+  const simulateHelpReply = (code) => {
+    setHelpCases((previous) =>
       previous.map((item) =>
-        item.id === caseId && item.status === "Abierto"
+        item.code === code
           ? {
               ...item,
               status: "Respondido",
@@ -1207,332 +565,520 @@ export default function App() {
           : item,
       ),
     );
+    notify("Respuesta ficticia agregada al caso");
   };
 
-  const nextProductId = () => {
-    const max = products.reduce((m, p) => {
-      const n = parseInt(String(p.id).replace(/\D/g, ""), 10);
-      return Number.isFinite(n) && n > m ? n : m;
-    }, 0);
-    return `PROD-${String(max + 1).padStart(3, "0")}`;
-  };
-
-  const resetForm = () => {
-    setForm(EMPTY_FORM);
-    setEditingId(null);
-    setFormError("");
-  };
-
-  const startEdit = (p) => {
-    setForm({
-      nombre: p.nombre,
-      categoria: p.categoria,
-      precio: String(p.precio),
-      stock: String(p.stock),
-      descripcion: p.descripcion,
-    });
-    setEditingId(p.id);
-    setFormError("");
-    if (scrollRef.current) scrollRef.current.scrollTo({ y: 0, animated: true });
-  };
-
-  const saveProduct = () => {
-    const nombre = form.nombre.trim();
-    const descripcion = form.descripcion.trim();
-    const precioTxt = form.precio.trim();
-    const stockTxt = form.stock.trim();
-    let error = "";
-    if (!nombre) error = "El nombre no puede estar vacío";
-    else if (
-      products.some(
-        (p) =>
-          p.id !== editingId && p.nombre.toLowerCase() === nombre.toLowerCase(),
-      )
-    )
-      error = "Ya existe un producto con ese nombre";
-    else if (!form.categoria) error = "Elige una categoría";
-    else if (!/^\d+$/.test(precioTxt) || Number(precioTxt) <= 0)
-      error = "El precio debe ser un número entero positivo";
-    else if (!/^\d+$/.test(stockTxt))
-      error = "El stock debe ser un número entero igual o mayor a 0";
-    else if (descripcion.length < 15)
-      error = "La descripción debe tener al menos 15 caracteres";
-
-    if (error) {
-      setFormError(error);
-      return notify(error);
+  const saveAddress = () => {
+    if (!addressForm.alias.trim() || !addressForm.reference.trim()) {
+      return notify("Completa el alias y la referencia de entrega");
     }
-
-    const precio = Number(precioTxt);
-    const stock = Number(stockTxt);
-    if (editingId) {
-      setProducts(
-        products.map((p) =>
-          p.id === editingId
-            ? {
-                ...p,
-                nombre,
-                categoria: form.categoria,
-                marca: BRAND_BY_CATEGORY[form.categoria],
-                precio: p.variantes ? p.precio : precio,
-                stock: p.variantes
-                  ? p.variantes.reduce(
-                      (sum, variant) => sum + variant.stock,
-                      0,
-                    )
-                  : stock,
-                descripcion,
-              }
-            : p,
+    if (editingAddressId) {
+      setAddresses(
+        addresses.map((address) =>
+          address.id === editingAddressId
+            ? { ...address, ...addressForm }
+            : address,
         ),
       );
-      const nextCart = cart
-        .map((item) => {
-          if (item.id !== editingId) return item;
-          const product = products.find((entry) => entry.id === editingId);
-          const variant =
-            product.variantes &&
-            product.variantes.find((entry) => entry.id === item.variantId);
-          const limit = variant ? variant.stock : stock;
-          return {
-            ...item,
-            unitPrice: variant ? variant.precio : precio,
-            qty: Math.min(item.qty, limit),
-          };
-        })
-        .filter((item) => item.qty > 0);
-      setCart(nextCart);
-      if (nextCart.length === 0) setCoupon(null);
-      notify("Producto actualizado");
+      setEditingAddressId(null);
+      notify("Dirección actualizada");
     } else {
-      setProducts([
-        ...products,
+      const id = `ADDR-${Date.now()}`;
+      setAddresses((previous) => [
+        ...previous,
         {
-          id: nextProductId(),
-          nombre,
-          categoria: form.categoria,
-          precio,
-          stock,
-          marca: BRAND_BY_CATEGORY[form.categoria],
-          descripcion,
+          id,
+          ...addressForm,
+          primary: previous.length === 0,
         },
       ]);
-      notify("Producto registrado en el catálogo");
+      if (addresses.length === 0) setSelectedAddressId(id);
+      notify("Dirección registrada");
     }
-    resetForm();
+    setAddressForm({
+      alias: "",
+      municipality: "Mosquera",
+      reference: "",
+    });
   };
 
-  const resetAll = () => {
-    AsyncStorage.removeItem(STORAGE_KEY).catch((error) => {
-      setToast(`No se pudieron borrar los datos guardados: ${error.message}`);
-    });
-    setProducts(INITIAL_PRODUCTS);
-    setFavorites([]);
-    setCart([]);
-    setOrders([]);
-    cancelledOrderCodes.current.clear();
-    setComparison([]);
-    setAddresses([]);
-    setSelectedAddressId(null);
-    setDeliveryMode("standard");
-    setNotifications([]);
-    setRestockSubscriptions([]);
-    setQuestions({});
-    setSupportCases([]);
-    setReviews({});
-    setCoupon(null);
-    setBuyer({ name: "", phone: "", city: "", address: "" });
-    setSelectedOrder(null);
-    setSearch("");
-    setCategory("Todas");
-    setSort("none");
-    setBrandFilter("Todas");
-    setAvailableOnly(false);
-    resetForm();
-    notify("Datos restablecidos al estado inicial");
+  const setPrimaryAddress = (id) => {
+    setAddresses(
+      addresses.map((address) => ({
+        ...address,
+        primary: address.id === id,
+      })),
+    );
+    setSelectedAddressId(id);
+    notify("Dirección principal actualizada");
   };
 
   const goToReview = () => {
-    const missing = FIELDS
-      .filter(([key]) => ["name", "phone"].includes(key))
-      .find(([key]) => !buyer[key].trim());
-    if (missing) return notify(`Falta: ${missing[1]}`);
-    if (!activeAddress) return notify("Selecciona una dirección de entrega");
-    if (!SHIPPING_RATES[activeAddress.city])
-      return notify("No hay tarifa disponible para ese municipio");
+    if (!selectedAddressId) return notify("Selecciona una dirección");
+    if (!shippingMode) return notify("Selecciona una modalidad de envío");
+    if (!buyer.name.trim())
+      return notify("Ingresa un nombre ficticio para el pedido");
+    if (!buyer.phone.trim())
+      return notify("Ingresa un teléfono ficticio para el pedido");
     setScreen("review");
   };
 
   const confirmPurchase = () => {
     if (cart.length === 0) return notify("El carrito está vacío");
+    if (!selectedAddressId || !shippingMode)
+      return notify("Completa dirección y modalidad de envío");
     const noStock = cartItems.find((i) => i.qty > i.stock);
     if (noStock) return notify(`Stock insuficiente de ${noStock.nombre}`);
-    if (!activeAddress) return notify("Selecciona una dirección de entrega");
 
     setProducts(
       products.map((p) => {
-        const bought = cart.filter((i) => i.id === p.id);
-        if (bought.length === 0) return p;
-        if (!p.variantes)
+        const bought = cart.filter((i) => i.productId === p.id);
+        if (!bought.length) return p;
+        if (p.variantes) {
+          const variantes = p.variantes.map((v) => {
+            const line = bought.find((i) => i.variantId === v.id);
+            return line ? { ...v, stock: Math.max(0, v.stock - line.qty) } : v;
+          });
           return {
             ...p,
-            stock: Math.max(
-              0,
-              p.stock - bought.reduce((sum, item) => sum + item.qty, 0),
-            ),
+            variantes,
+            stock: variantes.reduce((sum, v) => sum + v.stock, 0),
           };
-        const variantes = p.variantes.map((variant) => ({
-          ...variant,
-          stock: Math.max(
-            0,
-            variant.stock -
-              bought
-                .filter((item) => item.variantId === variant.id)
-                .reduce((sum, item) => sum + item.qty, 0),
-          ),
-        }));
-        return {
-          ...p,
-          variantes,
-          stock: variantes.reduce((sum, variant) => sum + variant.stock, 0),
-        };
+        }
+        const qty = bought.reduce((sum, i) => sum + i.qty, 0);
+        return { ...p, stock: Math.max(0, p.stock - qty) };
       }),
     );
-    const orderCode = `WIND-${String(orders.length + 1).padStart(4, "0")}`;
-    const orderDate = new Date().toLocaleString();
     const order = {
-      code: orderCode,
-      date: orderDate,
-      status: "Confirmado",
-      timeline: [{ status: "Confirmado", date: orderDate }],
-      deliveryMode,
-      deliveryEstimate: DELIVERY_ESTIMATE,
+      code: `WIND-${String(orders.length + 1).padStart(4, "0")}`,
+      date: new Date().toLocaleString(),
       buyer: {
-        ...buyer,
-        city: activeAddress.city,
-        address: activeAddress.reference,
-        addressAlias: activeAddress.alias,
-        deliveryMode,
-        deliveryEstimate: DELIVERY_ESTIMATE,
+        name: buyer.name.trim(),
+        phone: buyer.phone.trim(),
+        city: selectedAddress.municipality,
+        address: selectedAddress.reference,
       },
-      items: cartItems.map(({ id, nombre, precio, qty, variantId }) => ({
-        id,
-        nombre,
-        precio,
-        qty,
-        variantId,
-      })),
+      address: selectedAddress,
+      shippingMode,
+      items: cartItems.map(
+        ({ cartId, productId, variantId, nombre, precio, qty }) => ({
+          id: cartId,
+          productId,
+          variantId,
+          nombre,
+          precio,
+          qty,
+        }),
+      ),
       subtotal,
       discount,
-      coupon,
       shipping,
       total,
+      status: "Confirmado",
+      history: [
+        {
+          status: "Confirmado",
+          date: new Date().toLocaleString(),
+          detail: "Pedido confirmado",
+        },
+      ],
     };
     setOrders([order, ...orders]);
     setCart([]);
-    setCoupon(null);
+    setCouponApplied(false);
+    setCouponInput("");
     setSelectedOrder(order);
     setScreen("order");
     addNotification(
       `order-${order.code}-Confirmado`,
-      "Pedido confirmado",
-      `${order.code}: Confirmado. Compra simulada sin cobro real.`,
+      `Pedido ${order.code}: Confirmado`,
     );
     notify(`Pedido ${order.code} confirmado · simulación sin cobro real`);
   };
 
-  if (!hydrated)
-    return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <Text style={styles.muted}>Cargando WINDROSE...</Text>
-      </View>
+  const addNotification = (eventId, message) => {
+    setNotifications((previous) =>
+      previous.some((notification) => notification.eventId === eventId)
+        ? previous
+        : [
+            {
+              id: `NOT-${Date.now()}-${previous.length + 1}`,
+              eventId,
+              message,
+              date: new Date().toLocaleString(),
+              read: false,
+            },
+            ...previous,
+          ],
     );
+  };
+
+  const advanceOrder = (code) => {
+    setOrders((previous) =>
+      previous.map((order) => {
+        if (order.code !== code) return order;
+        if (order.status === "Entregado" || order.status === "Cancelado")
+          return order;
+        const states = ["Confirmado", "Preparando", "En camino", "Entregado"];
+        const next = states[states.indexOf(order.status) + 1];
+        if (!next) return order;
+        const updated = {
+          ...order,
+          status: next,
+          history: [
+            ...order.history,
+            {
+              status: next,
+              date: new Date().toLocaleString(),
+              detail: `Avance simulado a ${next}`,
+            },
+          ],
+        };
+        setSelectedOrder(updated);
+        addNotification(`order-${code}-${next}`, `Pedido ${code}: ${next}`);
+        notify(`Pedido avanzado a ${next}`);
+        return updated;
+      }),
+    );
+  };
+
+  const cancelOrder = (code) => {
+    const order = orders.find((item) => item.code === code);
+    if (!order) return;
+    if (["En camino", "Entregado"].includes(order.status)) {
+      return notify("No se puede cancelar: el pedido ya fue despachado");
+    }
+    if (order.status === "Cancelado") {
+      return notify("El pedido ya está cancelado");
+    }
+    Alert.alert(
+      "Cancelar compra",
+      "¿Confirmas la cancelación y el reintegro de stock?",
+      [
+        { text: "No" },
+        {
+          text: "Sí, cancelar",
+          onPress: () => {
+            setOrders((previous) =>
+              previous.map((item) =>
+                item.code !== code
+                  ? item
+                  : {
+                      ...item,
+                      status: "Cancelado",
+                      history: [
+                        ...item.history,
+                        {
+                          status: "Cancelado",
+                          date: new Date().toLocaleString(),
+                          detail: "Compra cancelada y stock restituido",
+                        },
+                      ],
+                    },
+              ),
+            );
+            setProducts((previous) =>
+              previous.map((product) => {
+                const lines = order.items.filter(
+                  (item) => item.productId === product.id,
+                );
+                if (!lines.length) return product;
+                if (product.variantes) {
+                  return {
+                    ...product,
+                    variantes: product.variantes.map((variant) => {
+                      const line = lines.find(
+                        (item) => item.variantId === variant.id,
+                      );
+                      return line
+                        ? { ...variant, stock: variant.stock + line.qty }
+                        : variant;
+                    }),
+                  };
+                }
+                return {
+                  ...product,
+                  stock:
+                    product.stock +
+                    lines.reduce((sum, item) => sum + item.qty, 0),
+                };
+              }),
+            );
+            setSelectedOrder((previous) =>
+              previous && previous.code === code
+                ? {
+                    ...previous,
+                    status: "Cancelado",
+                    history: [
+                      ...previous.history,
+                      {
+                        status: "Cancelado",
+                        date: new Date().toLocaleString(),
+                        detail: "Compra cancelada y stock restituido",
+                      },
+                    ],
+                  }
+                : previous,
+            );
+            addNotification(
+              `order-${code}-Cancelado`,
+              `Pedido ${code}: Cancelado`,
+            );
+            notify("Compra cancelada e inventario restituido");
+          },
+        },
+      ],
+    );
+  };
+
+  const sendQuestion = () => {
+    if (!selectedId) return;
+    if (questionText.trim().length < 10) {
+      return notify("La pregunta debe tener al menos 10 caracteres");
+    }
+    const question = {
+      id: `Q-${Date.now()}`,
+      text: questionText.trim(),
+      date: new Date().toLocaleString(),
+      status: "Pendiente",
+      answer: "",
+    };
+    setQuestions((previous) => ({
+      ...previous,
+      [selectedId]: [question, ...(previous[selectedId] || [])],
+    }));
+    setQuestionText("");
+    notify("Pregunta enviada");
+  };
+
+  const demoAnswer = (productId, questionId) => {
+    setQuestions((previous) => ({
+      ...previous,
+      [productId]: previous[productId].map((question) =>
+        question.id === questionId
+          ? {
+              ...question,
+              status: "Respondido",
+              answer: "Respuesta de demostración simulada",
+            }
+          : question,
+      ),
+    }));
+  };
+
+  const toggleSubscription = (productId, variantId) => {
+    const key = variantId || productId;
+    const existing = subscriptions.find((item) => item.key === key);
+    if (existing?.active) {
+      setSubscriptions(
+        subscriptions.map((item) =>
+          item.key === key ? { ...item, active: false } : item,
+        ),
+      );
+      notify("Suscripción cancelada");
+    } else if (existing) {
+      setSubscriptions(
+        subscriptions.map((item) =>
+          item.key === key ? { ...item, active: true } : item,
+        ),
+      );
+      notify("Suscripción activada nuevamente");
+    } else {
+      setSubscriptions([
+        ...subscriptions,
+        { key, productId, variantId, active: true },
+      ]);
+      notify("Suscripción registrada");
+    }
+  };
+
+  const restockDemo = () => {
+    let changed = false;
+    setProducts((previous) =>
+      previous.map((product) => {
+        if (!product.variantes) {
+          const subscribed = subscriptions.find(
+            (item) => item.active && item.key === product.id,
+          );
+          if (subscribed && product.stock === 0) {
+            changed = true;
+            addNotification(
+              `restock-${product.id}-${Date.now()}`,
+              `Reposición simulada: ${product.nombre}`,
+            );
+            return { ...product, stock: 5 };
+          }
+          return product;
+        }
+        return {
+          ...product,
+          variantes: product.variantes.map((variant) => {
+            const subscribed = subscriptions.find(
+              (item) => item.active && item.key === variant.id,
+            );
+            if (subscribed && variant.stock === 0) {
+              changed = true;
+              addNotification(
+                `restock-${variant.id}-${Date.now()}`,
+                `Reposición simulada: ${product.nombre} - ${variant.nombre}`,
+              );
+              return { ...variant, stock: 5 };
+            }
+            return variant;
+          }),
+        };
+      }),
+    );
+    notify(
+      changed
+        ? "Reposición simulada completada"
+        : "No hay suscripciones pendientes",
+    );
+  };
+
+  const createHelpCase = () => {
+    if (!helpOrder) return notify("Selecciona un pedido");
+    if (helpText.trim().length < 15)
+      return notify("La descripción debe tener al menos 15 caracteres");
+    const code = `CAS-${String(helpCases.length + 1).padStart(5, "0")}`;
+    setHelpCases([
+      {
+        code,
+        order: helpOrder,
+        reason: helpReason,
+        text: helpText.trim(),
+        status: "Abierto",
+        date: new Date().toLocaleString(),
+        answer: "",
+      },
+      ...helpCases,
+    ]);
+    setHelpText("");
+    notify(`Caso ${code} creado`);
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.brand}>WINDROSE</Text>
-          <Text style={styles.slogan}>Conectamos cada emprendimiento</Text>
-        </View>
-        <Text style={styles.logo}>WR</Text>
+        <Image
+          source={logo}
+          style={styles.logoImage}
+          resizeMode="contain"
+          accessibilityLabel="Logo de WindRose"
+        />
       </View>
 
       {toast !== "" && <Text style={styles.toast}>{toast}</Text>}
 
       <ScrollView
         key={screen}
-        ref={scrollRef}
-        keyboardShouldPersistTaps="handled"
         style={styles.body}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {screen === "home" && (
           <>
+            <View style={styles.hero}>
+              <Image
+                source={hero}
+                style={styles.heroImage}
+                resizeMode="contain"
+                accessibilityLabel="WindRose: Conectamos cada emprendimiento"
+              />
+            </View>
+            <Text style={styles.sectionTitle}>Explora nuestro catálogo</Text>
             <TextInput
               style={styles.input}
               placeholder="Buscar producto..."
               value={search}
               onChangeText={setSearch}
             />
-            <View style={styles.box}>
-              <Text style={styles.bold}>Filtros de catálogo</Text>
-              <Text style={styles.muted}>Marca</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginVertical: 6 }}
-              >
-                {["Todas", ...brands].map((brand) => (
-                  <ChoiceChip
-                    key={brand}
-                    selected={brandFilter === brand}
-                    onPress={() => setBrandFilter(brand)}
-                  >
-                    {brand}
-                  </ChoiceChip>
-                ))}
-              </ScrollView>
-              <View style={styles.row}>
-                <ChoiceChip
-                  selected={availableOnly}
-                  onPress={() => setAvailableOnly((value) => !value)}
-                >
-                  {availableOnly ? "✓ " : ""}Solo disponibles
-                </ChoiceChip>
-              </View>
-            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={{ marginBottom: 10 }}
             >
               {CATEGORIES.map((cat) => (
-                <ChoiceChip
+                <Pressable
                   key={cat}
-                  selected={category === cat}
+                  style={[styles.chip, category === cat && styles.chipActive]}
                   onPress={() => setCategory(cat)}
                 >
-                  {cat}
-                </ChoiceChip>
+                  <Text
+                    style={category === cat ? styles.white : styles.chipText}
+                  >
+                    {cat}
+                  </Text>
+                </Pressable>
               ))}
             </ScrollView>
             <View style={styles.row}>
               <Text style={[styles.muted, { marginRight: 8 }]}>Ordenar:</Text>
               {SORTS.map(([key, label]) => (
-                <ChoiceChip
+                <Pressable
                   key={key}
-                  selected={sort === key}
+                  style={[styles.chip, sort === key && styles.chipActive]}
                   onPress={() => setSort(key)}
                 >
-                  {label}
-                </ChoiceChip>
+                  <Text style={sort === key ? styles.white : styles.chipText}>
+                    {label}
+                  </Text>
+                </Pressable>
               ))}
+            </View>
+            <View style={[styles.row, { flexWrap: "wrap" }]}>
+              <Text style={[styles.muted, { marginRight: 8 }]}>Marca:</Text>
+              {brands.map((brandName) => (
+                <Pressable
+                  key={brandName}
+                  style={[
+                    styles.chip,
+                    brandFilter === brandName && styles.chipActive,
+                  ]}
+                  onPress={() => setBrandFilter(brandName)}
+                >
+                  <Text
+                    style={
+                      brandFilter === brandName ? styles.white : styles.chipText
+                    }
+                  >
+                    {brandName}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.row}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 5 }]}
+                placeholder="Precio mínimo"
+                keyboardType="numeric"
+                value={minPrice}
+                onChangeText={setMinPrice}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1, marginLeft: 5 }]}
+                placeholder="Precio máximo"
+                keyboardType="numeric"
+                value={maxPrice}
+                onChangeText={setMaxPrice}
+              />
+            </View>
+            {invalidPriceRange && (
+              <Text style={styles.red}>
+                El precio mínimo no puede ser mayor que el máximo.
+              </Text>
+            )}
+            <View style={[styles.row, { flexWrap: "wrap" }]}>
+              <Pressable
+                style={[styles.chip, availableOnly && styles.chipActive]}
+                onPress={() => setAvailableOnly(!availableOnly)}
+              >
+                <Text style={availableOnly ? styles.white : styles.chipText}>
+                  Solo disponibles
+                </Text>
+              </Pressable>
+              <Pressable style={styles.chip} onPress={resetCatalogFilters}>
+                <Text style={styles.chipText}>Restablecer</Text>
+              </Pressable>
             </View>
 
             {filtered.length === 0 ? (
@@ -1550,6 +1096,9 @@ export default function App() {
                     onPress={() => openDetail(p.id)}
                   >
                     <View style={styles.cardImg}>
+                      <Text style={styles.imagePlaceholderText}>
+                        ESPACIO PARA IMAGEN
+                      </Text>
                       <Text style={styles.small}>{p.categoria}</Text>
                       <Pressable
                         onPress={(e) => {
@@ -1566,16 +1115,31 @@ export default function App() {
                       {p.nombre}
                     </Text>
                     <Text style={styles.price}>{cop(p.precio)}</Text>
-                    <Text style={styles.small}>Marca: {p.marca}</Text>
                     <Text style={p.stock > 0 ? styles.green : styles.red}>
-                      {p.stock > 0 ? `Stock: ${p.stock}` : "Agotado"}
+                      {productStock(p) > 0
+                        ? `Stock: ${productStock(p)}`
+                        : "Agotado"}
                     </Text>
-                    {ratingOf(p.id).count > 0 && (
-                      <Text style={styles.small}>
-                        ★ {ratingOf(p.id).avg.toFixed(1)} (
-                        {ratingOf(p.id).count})
+                    <Pressable
+                      style={[
+                        styles.compareChip,
+                        comparison.includes(p.id) && styles.chipActive,
+                      ]}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        toggleCompare(p.id);
+                      }}
+                    >
+                      <Text
+                        style={
+                          comparison.includes(p.id)
+                            ? styles.white
+                            : styles.chipText
+                        }
+                      >
+                        {comparison.includes(p.id) ? "Comparado" : "Comparar"}
                       </Text>
-                    )}
+                    </Pressable>
                   </Pressable>
                 ))}
               </View>
@@ -1597,199 +1161,194 @@ export default function App() {
               </Pressable>
             </View>
             <Text style={styles.muted}>{current.categoria}</Text>
-            <Text style={styles.muted}>Marca: {current.marca}</Text>
             <Text style={{ marginVertical: 8 }}>{current.descripcion}</Text>
-            {current.variantes && (
-              <View style={styles.box}>
-                <Text style={styles.bold}>Elige una variante</Text>
-                <View style={styles.wrap}>
-                  {current.variantes.map((variant) => (
-                    <ChoiceChip
-                      key={variant.id}
-                      selected={selectedVariantId === variant.id}
-                      style={{ marginTop: 8 }}
-                      onPress={() => {
-                        setSelectedVariantId(variant.id);
-                        setSelectedQty(1);
-                      }}
+            {current.variantes ? (
+              <>
+                <Text style={styles.bold}>Selecciona una variante</Text>
+                {current.variantes.map((variant) => (
+                  <Pressable
+                    key={variant.id}
+                    disabled={variant.stock === 0}
+                    style={[
+                      styles.variant,
+                      selectedVariantId === variant.id && styles.variantActive,
+                      variant.stock === 0 && styles.btnOff,
+                    ]}
+                    onPress={() => setSelectedVariantId(variant.id)}
+                  >
+                    <Text
+                      style={
+                        selectedVariantId === variant.id
+                          ? styles.white
+                          : styles.bold
+                      }
                     >
-                      {variant.nombre}
-                    </ChoiceChip>
-                  ))}
-                </View>
-              </View>
+                      {variant.nombre} · {cop(variant.precio)} ·{" "}
+                      {variant.stock > 0
+                        ? `Stock: ${variant.stock}`
+                        : "Agotado"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <>
+                <Text style={styles.title}>{cop(current.precio)}</Text>
+                <Text style={current.stock > 0 ? styles.green : styles.red}>
+                  {current.stock > 0
+                    ? `Disponibles: ${current.stock}`
+                    : "Agotado"}
+                </Text>
+              </>
             )}
-            <Text style={styles.title}>
-              {cop(selectedVariant ? selectedVariant.precio : current.precio)}
-            </Text>
-            <Text
-              style={
-                (selectedVariant ? selectedVariant.stock : current.stock) > 0
-                  ? styles.green
-                  : styles.red
-              }
-            >
-              {(selectedVariant ? selectedVariant.stock : current.stock) > 0
-                ? `Disponibles: ${selectedVariant ? selectedVariant.stock : current.stock}`
-                : "Agotado"}
-            </Text>
-            <View style={styles.row}>
-              <Pressable
-                style={styles.qtyBtn}
-                onPress={() => setSelectedQty((value) => Math.max(1, value - 1))}
-              >
-                <Text>-</Text>
-              </Pressable>
-              <Text style={styles.qty}>{selectedQty}</Text>
-              <Pressable
-                style={styles.qtyBtn}
-                onPress={() => {
-                  const available = selectedVariant
-                    ? selectedVariant.stock
-                    : current.stock;
-                  if (selectedQty >= available)
-                    return notify(`Stock máximo disponible: ${available}`);
-                  setSelectedQty((value) => value + 1);
-                }}
-              >
-                <Text>+</Text>
-              </Pressable>
-            </View>
-            <ActionButton
+            <Pressable
+              style={[
+                styles.btn,
+                ((current.variantes &&
+                  (!selectedVariantId ||
+                    current.variantes.find((v) => v.id === selectedVariantId)
+                      ?.stock === 0)) ||
+                  (!current.variantes && current.stock === 0)) &&
+                  styles.btnOff,
+              ]}
               disabled={
-                (selectedVariant ? selectedVariant.stock : current.stock) === 0
+                current.variantes
+                  ? !selectedVariantId ||
+                    current.variantes.find((v) => v.id === selectedVariantId)
+                      ?.stock === 0
+                  : current.stock === 0
               }
-              onPress={() =>
-                addToCart(current, selectedVariantId, selectedQty)
-              }
+              onPress={() => addToCart(current)}
             >
-              {(selectedVariant ? selectedVariant.stock : current.stock) === 0
-                ? "Agotado"
-                : "Agregar al carrito"}
-            </ActionButton>
-            {(selectedVariant ? selectedVariant.stock : current.stock) === 0 && (
-              restockSubscriptions.some(
-                (subscription) =>
-                  subscription.productId === current.id &&
-                  subscription.variantId ===
-                    (selectedVariant ? selectedVariant.id : null),
-              ) ? (
-                <ActionButton
-                  onPress={() =>
-                    cancelRestockSubscription(
-                      current,
-                      selectedVariant ? selectedVariant.id : null,
-                    )
-                  }
-                >
-                  Cancelar aviso de reposición
-                </ActionButton>
-              ) : (
-                <ActionButton
-                  onPress={() =>
-                    subscribeForRestock(
-                      current,
-                      selectedVariant ? selectedVariant.id : null,
-                    )
-                  }
-                >
-                  Avisarme cuando haya stock
-                </ActionButton>
-              )
-            )}
-            <View style={styles.box}>
-              <Text style={styles.bold}>Valoraciones</Text>
-              <Text style={styles.muted}>
-                {ratingOf(current.id).count > 0
-                  ? `★ ${ratingOf(current.id).avg.toFixed(1)} de 5 · ${ratingOf(current.id).count} ${ratingOf(current.id).count === 1 ? "valoración" : "valoraciones"}`
-                  : "Aún no hay valoraciones"}
+              <Text style={styles.white}>
+                {current.stock === 0 ? "Agotado" : "Agregar al carrito"}
               </Text>
-              <Text style={[styles.muted, { marginTop: 8 }]}>
-                Tu calificación:
+            </Pressable>
+            {(current.variantes
+              ? current.variantes.filter((v) => v.stock === 0)
+              : current.stock === 0
+                ? [null]
+                : []
+            ).map((variant, index) => (
+              <Pressable
+                key={variant?.id || `agotado-${index}`}
+                style={styles.secondaryBtn}
+                onPress={() => toggleSubscription(current.id, variant?.id)}
+              >
+                <Text style={styles.secondaryBtnText}>
+                  {subscriptions.some(
+                    (item) =>
+                      item.active && item.key === (variant?.id || current.id),
+                  )
+                    ? "Cancelar aviso de reposición"
+                    : "Avisarme cuando haya stock"}
+                </Text>
+              </Pressable>
+            ))}
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>
+                Valoraciones de compradores
+              </Text>
+              <Text style={styles.muted}>
+                {ratings[current.id]?.length
+                  ? `Promedio: ${(ratings[current.id].reduce((a, b) => a + b, 0) / ratings[current.id].length).toFixed(1)} / 5 (${ratings[current.id].length} valoraciones)`
+                  : "Este producto todavía no tiene valoraciones."}
               </Text>
               <View style={styles.row}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Pressable key={n} onPress={() => setRating(n)}>
-                    <Text style={styles.starBig}>
-                      {n <= rating ? "★" : "☆"}
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Pressable key={star} onPress={() => setRatingDraft(star)}>
+                    <Text
+                      style={[
+                        styles.ratingStar,
+                        star <= ratingDraft && styles.ratingStarActive,
+                      ]}
+                    >
+                      ★
                     </Text>
                   </Pressable>
                 ))}
               </View>
-              <ActionButton onPress={() => saveReview(current.id)}>
-                Guardar valoración
-              </ActionButton>
+              <Pressable style={styles.secondaryBtn} onPress={saveRating}>
+                <Text style={styles.secondaryBtnText}>
+                  Guardar valoración ficticia
+                </Text>
+              </Pressable>
             </View>
-            <View style={styles.box}>
-              <ActionButton
-                onPress={() => toggleComparison(current.id)}
-                style={[
-                  styles.compareAction,
-                  comparison.includes(current.id) && styles.compareSelected,
-                ]}
-              >
-                {comparison.includes(current.id)
-                  ? "Quitar del comparador"
-                  : "Agregar al comparador"}
-              </ActionButton>
-            </View>
-            <View style={styles.box}>
-              <Text style={styles.bold}>Preguntas del producto</Text>
-              {(questions[current.id] || []).length === 0 ? (
-                <Text style={styles.muted}>Aún no hay preguntas.</Text>
-              ) : (
-                (questions[current.id] || []).map((question) => (
-                  <View key={question.id} style={styles.question}>
-                    <Text style={styles.bold}>{question.text}</Text>
-                    <Text style={styles.small}>
-                      {question.date} · {question.status}
-                    </Text>
-                    {question.answer ? (
-                      <Text style={styles.muted}>{question.answer}</Text>
-                    ) : (
-                      <Pressable
-                        onPress={() => simulateQuestionAnswer(question.id)}
-                      >
-                        <Text style={styles.link}>Simular respuesta</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                ))
-              )}
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>
+                Preguntas sobre este producto
+              </Text>
               <TextInput
-                style={[styles.input, styles.inputMulti, { marginTop: 10 }]}
-                placeholder="Escribe una pregunta (mínimo 10 caracteres)"
-                value={questionInput}
-                onChangeText={setQuestionInput}
+                style={styles.input}
+                placeholder="Escribe tu pregunta (mínimo 10 caracteres)"
+                value={questionText}
+                onChangeText={setQuestionText}
                 multiline
               />
-              <ActionButton onPress={addQuestion}>Enviar pregunta</ActionButton>
-              <Text style={styles.small}>
-                Las respuestas son simuladas y no provienen de personas reales.
-              </Text>
+              <Pressable style={styles.secondaryBtn} onPress={sendQuestion}>
+                <Text style={styles.secondaryBtnText}>Enviar pregunta</Text>
+              </Pressable>
+              {(questions[current.id] || []).map((question) => (
+                <View key={question.id} style={styles.questionCard}>
+                  <Text style={styles.bold}>{question.text}</Text>
+                  <Text style={styles.muted}>
+                    {question.date} · {question.status}
+                  </Text>
+                  {question.answer ? (
+                    <Text>{question.answer}</Text>
+                  ) : (
+                    <Pressable
+                      onPress={() => demoAnswer(current.id, question.id)}
+                    >
+                      <Text style={styles.link}>Simular respuesta</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
             </View>
-            <View style={styles.box}>
-              <Text style={styles.bold}>Productos relacionados</Text>
-              {relatedProducts.length === 0 ? (
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Productos relacionados</Text>
+              {products
+                .filter(
+                  (item) =>
+                    item.id !== current.id &&
+                    item.categoria === current.categoria &&
+                    productStock(item) > 0,
+                )
+                .slice(0, 4).length === 0 ? (
                 <Text style={styles.muted}>
-                  No hay productos disponibles de esta categoría.
+                  No hay otros productos disponibles en esta categoría.
                 </Text>
               ) : (
-                relatedProducts.map((product) => (
-                  <Pressable
-                    key={product.id}
-                    style={styles.itemRow}
-                    onPress={() => openDetail(product.id)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.bold}>{product.nombre}</Text>
-                      <Text style={styles.price}>{cop(product.precio)}</Text>
-                    </View>
-                    <Text style={styles.link}>Ver</Text>
-                  </Pressable>
-                ))
+                products
+                  .filter(
+                    (item) =>
+                      item.id !== current.id &&
+                      item.categoria === current.categoria &&
+                      productStock(item) > 0,
+                  )
+                  .slice(0, 4)
+                  .map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={styles.relatedRow}
+                      onPress={() => openDetail(item.id)}
+                    >
+                      <View style={styles.relatedImagePlaceholder}>
+                        <Text style={styles.imagePlaceholderText}>IMAGEN</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.bold}>{item.nombre}</Text>
+                        <Text style={styles.price}>{cop(item.precio)}</Text>
+                      </View>
+                    </Pressable>
+                  ))
               )}
             </View>
+
             <Pressable onPress={() => setScreen(back)}>
               <Text style={styles.link}>Volver</Text>
             </Pressable>
@@ -1826,6 +1385,40 @@ export default function App() {
           </>
         )}
 
+        {screen === "compare" && (
+          <>
+            <Text style={styles.title}>Comparador ({comparison.length}/3)</Text>
+            {comparison.length === 0 ? (
+              <Text style={styles.muted}>
+                Selecciona productos en el catálogo para comparar.
+              </Text>
+            ) : (
+              <ScrollView horizontal>
+                {comparison.map((id) => {
+                  const product = products.find((p) => p.id === id);
+                  return (
+                    <View key={id} style={styles.compareColumn}>
+                      <Text style={styles.bold}>{product.nombre}</Text>
+                      <Text style={styles.muted}>Marca: {product.marca}</Text>
+                      <Text style={styles.price}>{cop(product.precio)}</Text>
+                      <Text
+                        style={
+                          productStock(product) > 0 ? styles.green : styles.red
+                        }
+                      >
+                        {productStock(product) > 0 ? "Disponible" : "Agotado"}
+                      </Text>
+                      <Pressable onPress={() => toggleCompare(id)}>
+                        <Text style={styles.danger}>Retirar</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </>
+        )}
+
         {screen === "cart" && (
           <>
             <Text style={styles.title}>Tu carrito</Text>
@@ -1838,10 +1431,7 @@ export default function App() {
             ) : (
               <>
                 {cartItems.map((i) => (
-                  <View
-                    key={`${i.id}-${i.variantId || "base"}`}
-                    style={styles.itemRow}
-                  >
+                  <View key={i.cartId} style={styles.itemRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.bold}>{i.nombre}</Text>
                       <Text style={styles.muted}>{cop(i.precio)} c/u</Text>
@@ -1859,58 +1449,38 @@ export default function App() {
                     >
                       <Text>+</Text>
                     </Pressable>
-                    <Pressable
-                      onPress={() => removeFromCart(i.id, i.variantId)}
-                    >
+                    <Pressable onPress={() => removeFromCart(i.cartId)}>
                       <Text style={[styles.danger, { marginLeft: 10 }]}>
                         Eliminar
                       </Text>
                     </Pressable>
                   </View>
                 ))}
-                <View style={styles.box}>
-                  <Text style={styles.bold}>Cupón promocional</Text>
-                  {coupon ? (
-                    <View
-                      style={[styles.row, { marginTop: 8, marginBottom: 0 }]}
-                    >
-                      <Text style={[styles.discount, { flex: 1 }]}>
-                        Cupón {coupon} aplicado (-{COUPONS[coupon] * 100}%)
-                      </Text>
-                      <Pressable onPress={removeCoupon}>
-                        <Text style={styles.danger}>Quitar</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <View
-                      style={[styles.row, { marginTop: 8, marginBottom: 0 }]}
-                    >
-                      <TextInput
-                        style={[
-                          styles.input,
-                          { flex: 1, marginBottom: 0, marginRight: 8 },
-                        ]}
-                        placeholder="Código de cupón"
-                        autoCapitalize="characters"
-                        value={couponInput}
-                        onChangeText={setCouponInput}
-                      />
-                      <ActionButton small onPress={applyCoupon}>
-                        Aplicar
-                      </ActionButton>
-                    </View>
+                <View style={styles.panel}>
+                  <Text style={styles.sectionTitle}>Cupón promocional</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ingresa BIENVENIDO10"
+                    autoCapitalize="characters"
+                    value={couponInput}
+                    onChangeText={setCouponInput}
+                  />
+                  <Pressable style={styles.secondaryBtn} onPress={applyCoupon}>
+                    <Text style={styles.secondaryBtnText}>
+                      {couponApplied ? "Cupón aplicado · 10%" : "Aplicar cupón"}
+                    </Text>
+                  </Pressable>
+                  {couponApplied && (
+                    <Text style={styles.green}>Descuento: {cop(discount)}</Text>
                   )}
                 </View>
-                <Totals
-                  subtotal={subtotal}
-                  discount={discount}
-                  coupon={coupon}
-                  shipping={shipping}
-                  total={total}
-                />
-                <ActionButton onPress={() => setScreen("checkout")}>
-                  Continuar compra
-                </ActionButton>
+                <Totals subtotal={subtotal} shipping={shipping} total={total} />
+                <Pressable
+                  style={styles.btn}
+                  onPress={() => setScreen("checkout")}
+                >
+                  <Text style={styles.white}>Continuar compra</Text>
+                </Pressable>
               </>
             )}
           </>
@@ -1918,88 +1488,170 @@ export default function App() {
 
         {screen === "checkout" && (
           <>
-            <Text style={styles.title}>Datos del comprador</Text>
+            <Text style={styles.title}>Dirección y envío</Text>
             <Text style={[styles.muted, { marginBottom: 10 }]}>
-              Usa datos ficticios; no ingreses información sensible.
+              Usa datos ficticios para esta simulación.
             </Text>
-            {FIELDS.map(([key, label]) => (
-              <TextInput
-                key={key}
-                style={styles.input}
-                placeholder={label}
-                value={buyer[key]}
-                keyboardType={key === "phone" ? "phone-pad" : "default"}
-                onChangeText={(t) => setBuyer({ ...buyer, [key]: t })}
-              />
-            ))}
-            <Text style={styles.title}>Dirección de entrega</Text>
-            {addresses.length === 0 ? (
-              <Empty
-                text="Primero registra una dirección ficticia."
-                label="Crear dirección"
-                onPress={() => setScreen("addresses")}
-              />
-            ) : (
-              addresses.map((address) => (
-                <Pressable
-                  key={address.id}
-                  style={[
-                    styles.addressCard,
-                    selectedAddressId === address.id && styles.addressSelected,
-                  ]}
-                  onPress={() => selectAddress(address.id)}
-                >
+            {addresses.map((address) => (
+              <View
+                key={address.id}
+                style={[
+                  styles.box,
+                  selectedAddressId === address.id && styles.primaryBox,
+                ]}
+              >
+                <Pressable onPress={() => setSelectedAddressId(address.id)}>
                   <Text style={styles.bold}>
-                    {selectedAddressId === address.id ? "✓ " : ""}
                     {address.alias}
                     {address.primary ? " · Principal" : ""}
                   </Text>
-                  <Text style={styles.muted}>
-                    {address.city} · {address.reference}
+                  <Text>
+                    {address.municipality} · {address.reference}
                   </Text>
                 </Pressable>
-              ))
+                <Pressable onPress={() => setPrimaryAddress(address.id)}>
+                  <Text style={styles.link}>Seleccionar principal</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setEditingAddressId(address.id);
+                    setAddressForm({
+                      alias: address.alias,
+                      municipality: address.municipality,
+                      reference: address.reference,
+                    });
+                  }}
+                >
+                  <Text style={styles.link}>Editar</Text>
+                </Pressable>
+              </View>
+            ))}
+            {addresses.length === 0 && (
+              <Text style={styles.muted}>No hay direcciones registradas.</Text>
             )}
-            {activeAddress && (
-              <>
-                <Text style={styles.title}>Modalidad de envío</Text>
-                <View style={styles.wrap}>
-                  {[
-                    ["standard", "Estándar"],
-                    ["express", "Exprés"],
-                  ].map(([mode, label]) => (
-                    <ChoiceChip
-                      key={mode}
-                      selected={deliveryMode === mode}
-                      onPress={() => setDeliveryMode(mode)}
-                    >
-                      {label}
-                    </ChoiceChip>
-                  ))}
-                </View>
-                <View style={styles.box}>
-                  <Text style={styles.bold}>
-                    Envío: {shipping === 0 ? "GRATIS" : cop(shipping)}
-                  </Text>
-                  <Text style={styles.muted}>
-                    Tarifa de práctica:{" "}
-                    {cop(SHIPPING_RATES[activeAddress.city][deliveryMode])} ·{" "}
-                    {DELIVERY_ESTIMATE}
-                  </Text>
-                </View>
-              </>
-            )}
-            <Pressable onPress={() => setScreen("addresses")}>
-              <Text style={styles.link}>Administrar mis direcciones</Text>
-            </Pressable>
-            <Totals
-              subtotal={subtotal}
-              discount={discount}
-              coupon={coupon}
-              shipping={shipping}
-              total={total}
+            <Text style={[styles.title, { marginTop: 12 }]}>
+              {editingAddressId ? "Editar dirección" : "Nueva dirección"}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Alias ficticio"
+              value={addressForm.alias}
+              onChangeText={(alias) =>
+                setAddressForm({ ...addressForm, alias })
+              }
             />
-            <ActionButton onPress={goToReview}>Revisar pedido</ActionButton>
+            <View style={styles.row}>
+              {["Mosquera", "Funza", "Madrid"].map((municipality) => (
+                <Pressable
+                  key={municipality}
+                  style={[
+                    styles.chip,
+                    addressForm.municipality === municipality &&
+                      styles.chipActive,
+                  ]}
+                  onPress={() =>
+                    setAddressForm({ ...addressForm, municipality })
+                  }
+                >
+                  <Text
+                    style={
+                      addressForm.municipality === municipality
+                        ? styles.white
+                        : styles.chipText
+                    }
+                  >
+                    {municipality}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Referencia ficticia de entrega"
+              value={addressForm.reference}
+              onChangeText={(reference) =>
+                setAddressForm({ ...addressForm, reference })
+              }
+            />
+            <Pressable style={styles.btn} onPress={saveAddress}>
+              <Text style={styles.white}>Guardar dirección</Text>
+            </Pressable>
+            <Text style={[styles.title, { marginTop: 12 }]}>
+              Datos ficticios del comprador
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre de prueba"
+              value={buyer.name}
+              onChangeText={(name) => setBuyer({ ...buyer, name })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Teléfono ficticio"
+              keyboardType="phone-pad"
+              value={buyer.phone}
+              onChangeText={(phone) => setBuyer({ ...buyer, phone })}
+            />
+            <Text style={[styles.title, { marginTop: 12 }]}>
+              Modalidad de envío
+            </Text>
+            <View style={styles.row}>
+              {[
+                ["standard", "Estándar"],
+                ["express", "Exprés"],
+              ].map(([key, label]) => (
+                <Pressable
+                  key={key}
+                  style={[
+                    styles.chip,
+                    shippingMode === key && styles.chipActive,
+                  ]}
+                  onPress={() => setShippingMode(key)}
+                >
+                  <Text
+                    style={
+                      shippingMode === key ? styles.white : styles.chipText
+                    }
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {selectedAddress &&
+              shippingMode &&
+              SHIPPING_TARIFFS[selectedAddress.municipality] && (
+                <>
+                  <Totals
+                    subtotal={subtotal}
+                    shipping={
+                      SHIPPING_TARIFFS[selectedAddress.municipality][
+                        shippingMode
+                      ]
+                    }
+                    total={Math.max(
+                      0,
+                      subtotal -
+                        discount +
+                        SHIPPING_TARIFFS[selectedAddress.municipality][
+                          shippingMode
+                        ],
+                    )}
+                  />
+                  {discount > 0 && (
+                    <Text style={styles.green}>
+                      Descuento aplicado: {cop(discount)}
+                    </Text>
+                  )}
+                  <Text style={styles.muted}>
+                    Entrega estimada:{" "}
+                    {SHIPPING_TARIFFS[selectedAddress.municipality].days}
+                  </Text>
+                </>
+              )}
+            <Pressable style={styles.btn} onPress={goToReview}>
+              <Text style={styles.white}>Revisar pedido</Text>
+            </Pressable>
             <Pressable onPress={() => setScreen("cart")}>
               <Text style={styles.link}>Volver al carrito</Text>
             </Pressable>
@@ -2010,24 +1662,23 @@ export default function App() {
           <>
             <Text style={styles.title}>Revisa tu pedido</Text>
             <OrderSummary
-              buyer={{
-                ...buyer,
-                city: activeAddress ? activeAddress.city : "",
-                address: activeAddress ? activeAddress.reference : "",
-                addressAlias: activeAddress ? activeAddress.alias : "",
-                deliveryMode,
-                deliveryEstimate: DELIVERY_ESTIMATE,
-              }}
+              buyer={buyer}
               items={cartItems}
               subtotal={subtotal}
-              discount={discount}
-              coupon={coupon}
               shipping={shipping}
               total={total}
             />
-            <ActionButton onPress={confirmPurchase}>
-              Confirmar compra
-            </ActionButton>
+            {discount > 0 && (
+              <Text style={styles.green}>
+                Cupón BIENVENIDO10 · Descuento: {cop(discount)}
+              </Text>
+            )}
+            <Text style={styles.muted}>
+              La compra es una simulación académica, sin cobro real.
+            </Text>
+            <Pressable style={styles.btn} onPress={confirmPurchase}>
+              <Text style={styles.white}>Confirmar compra</Text>
+            </Pressable>
             <Pressable onPress={() => setScreen("checkout")}>
               <Text style={styles.link}>Editar datos</Text>
             </Pressable>
@@ -2055,7 +1706,6 @@ export default function App() {
                 >
                   <Text style={styles.bold}>{o.code}</Text>
                   <Text style={styles.muted}>{o.date}</Text>
-                  <Text style={styles.muted}>Estado: {o.status}</Text>
                   <Text style={styles.price}>Total: {cop(o.total)}</Text>
                 </Pressable>
               ))
@@ -2063,690 +1713,703 @@ export default function App() {
           </>
         )}
 
-        {screen === "compare" && (
+        {screen === "order" && selectedOrder && (
           <>
-            <Text style={styles.title}>Comparador de productos</Text>
-            <Text style={styles.muted}>
-              Selecciona de 2 a 3 productos desde el catálogo.
-            </Text>
-            {comparison.length < 2 ? (
-              <Empty
-                text="Agrega al menos dos productos para compararlos."
-                label="Ir al catálogo"
-                onPress={() => setScreen("home")}
-              />
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator>
-                <View style={styles.compareRow}>
-                  {comparison
-                    .map((id) => products.find((product) => product.id === id))
-                    .filter(Boolean)
-                    .map((product) => (
-                      <View key={product.id} style={styles.compareCard}>
-                        <Text style={styles.bold}>{product.nombre}</Text>
-                        <Text style={styles.muted}>
-                          Marca: {product.marca}
-                        </Text>
-                        <Text style={styles.price}>{cop(product.precio)}</Text>
-                        <Text
-                          style={product.stock > 0 ? styles.green : styles.red}
-                        >
-                          {product.stock > 0
-                            ? `Disponible · ${product.stock}`
-                            : "Agotado"}
-                        </Text>
-                        <Pressable onPress={() => toggleComparison(product.id)}>
-                          <Text style={styles.danger}>Quitar</Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                </View>
-              </ScrollView>
-            )}
-          </>
-        )}
-
-        {screen === "addresses" && (
-          <>
-            <Text style={styles.title}>Mis direcciones ficticias</Text>
-            <Text style={styles.muted}>
-              Usa referencias de prueba; no ingreses datos personales reales.
-            </Text>
-            <View style={styles.box}>
-              <Text style={styles.bold}>
-                {editingAddressId ? "Editar dirección" : "Nueva dirección"}
+            <Text style={styles.title}>Pedido {selectedOrder.code}</Text>
+            <Text style={styles.muted}>Fecha: {selectedOrder.date}</Text>
+            <OrderSummary {...selectedOrder} />
+            {selectedOrder.discount > 0 && (
+              <Text style={styles.green}>
+                Descuento aplicado: {cop(selectedOrder.discount)}
               </Text>
-              <TextInput
-                style={[styles.input, { marginTop: 10 }]}
-                placeholder="Alias (por ejemplo, Casa)"
-                value={addressForm.alias}
-                onChangeText={(text) =>
-                  setAddressForm({ ...addressForm, alias: text })
-                }
-              />
-              <Text style={styles.muted}>Municipio</Text>
-              <View style={styles.wrap}>
-                {Object.keys(SHIPPING_RATES).map((city) => (
-                <ChoiceChip
-                    key={city}
-                  selected={addressForm.city === city}
-                  style={{ marginTop: 8 }}
-                    onPress={() => setAddressForm({ ...addressForm, city })}
-                  >
-                  {city}
-                </ChoiceChip>
-                ))}
-              </View>
-              <TextInput
-                style={[styles.input, { marginTop: 10 }]}
-                placeholder="Referencia de entrega ficticia"
-                value={addressForm.reference}
-                onChangeText={(text) =>
-                  setAddressForm({ ...addressForm, reference: text })
-                }
-              />
-              <ActionButton onPress={saveAddress}>
-                {editingAddressId ? "Guardar cambios" : "Agregar dirección"}
-              </ActionButton>
-              {editingAddressId && (
-                <Pressable
-                  onPress={() => {
-                    setAddressForm(EMPTY_ADDRESS);
-                    setEditingAddressId(null);
-                  }}
+            )}
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Seguimiento del pedido</Text>
+              <Text style={styles.bold}>
+                Estado actual: {selectedOrder.status}
+              </Text>
+              {(selectedOrder.history || []).map((event, index) => (
+                <View
+                  key={`${event.status}-${index}`}
+                  style={styles.timelineRow}
                 >
-                  <Text style={styles.link}>Cancelar edición</Text>
+                  <Text style={styles.timelineDot}>●</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.bold}>{event.status}</Text>
+                    <Text style={styles.muted}>{event.date}</Text>
+                    <Text>{event.detail}</Text>
+                  </View>
+                </View>
+              ))}
+              {!["Entregado", "Cancelado"].includes(selectedOrder.status) && (
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => advanceOrder(selectedOrder.code)}
+                >
+                  <Text style={styles.secondaryBtnText}>
+                    Simular avance de entrega
+                  </Text>
+                </Pressable>
+              )}
+              {["Confirmado", "Preparando"].includes(selectedOrder.status) && (
+                <Pressable
+                  style={styles.dangerBtn}
+                  onPress={() => cancelOrder(selectedOrder.code)}
+                >
+                  <Text style={styles.dangerBtnText}>
+                    Cancelar compra y reintegrar stock
+                  </Text>
                 </Pressable>
               )}
             </View>
-            {addresses.length === 0 ? (
-              <Text style={styles.muted}>Aún no tienes direcciones guardadas.</Text>
-            ) : (
-              addresses.map((address) => (
-                <View key={address.id} style={styles.addressCard}>
-                  <Text style={styles.bold}>
-                    {address.alias}
-                    {address.primary ? " · Principal" : ""}
-                  </Text>
-                  <Text style={styles.muted}>
-                    {address.city} · {address.reference}
-                  </Text>
-                  <View style={styles.row}>
-                    <Pressable onPress={() => selectAddress(address.id)}>
-                      <Text style={styles.link}>Elegir como principal</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        setAddressForm({
-                          alias: address.alias,
-                          city: address.city,
-                          reference: address.reference,
-                        });
-                        setEditingAddressId(address.id);
-                      }}
-                    >
-                      <Text style={styles.link}>Editar</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))
-            )}
+            <Text style={styles.note}>
+              Compra simulada registrada correctamente.
+            </Text>
+            <Pressable onPress={() => setScreen("history")}>
+              <Text style={styles.link}>Volver al historial</Text>
+            </Pressable>
           </>
         )}
 
+        {screen === "more" && (
+          <View>
+            <Text style={styles.title}>Más opciones</Text>
+            {[
+              [
+                "notifications",
+                `Notificaciones${unreadCount ? ` (${unreadCount} sin leer)` : ""}`,
+              ],
+              ["help", "Centro de ayuda"],
+              ["seller", "Panel de vendedor"],
+            ].map(([key, label]) => (
+              <Pressable
+                key={key}
+                style={styles.menuOption}
+                onPress={() => setScreen(key)}
+              >
+                <Text style={styles.bold}>{label}</Text>
+                <Text style={styles.link}>Abrir →</Text>
+              </Pressable>
+            ))}
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>
+                Herramientas de demostración
+              </Text>
+              <Text style={styles.muted}>
+                La reposición modifica el inventario de variantes agotadas con
+                aviso activo.
+              </Text>
+              <Pressable style={styles.secondaryBtn} onPress={restockDemo}>
+                <Text style={styles.secondaryBtnText}>
+                  Simular reposición de inventario
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {screen === "notifications" && (
-          <>
-            <Text style={styles.title}>Centro de avisos</Text>
+          <View>
+            <Text style={styles.title}>Centro de notificaciones</Text>
             {notifications.length === 0 ? (
               <Empty
                 text="No tienes notificaciones por ahora."
-                label="Ir al catálogo"
+                label="Volver al inicio"
                 onPress={() => setScreen("home")}
               />
             ) : (
-              notifications.map((notification) => (
+              notifications.map((item) => (
                 <Pressable
-                  key={notification.id}
+                  key={item.id}
                   style={[
-                    styles.box,
-                    !notification.read && styles.unreadNotification,
+                    styles.notificationCard,
+                    !item.read && styles.unreadCard,
                   ]}
-                  onPress={() =>
-                    setNotifications((previous) =>
-                      previous.map((item) =>
-                        item.id === notification.id
-                          ? { ...item, read: true }
-                          : item,
-                      ),
-                    )
-                  }
+                  onPress={() => markNotificationRead(item.id)}
                 >
-                  <Text style={styles.bold}>{notification.title}</Text>
-                  <Text style={styles.muted}>{notification.message}</Text>
-                  <Text style={styles.small}>
-                    {notification.date} ·{" "}
-                    {notification.read ? "Leída" : "Sin leer"}
+                  <Text style={styles.bold}>{item.message}</Text>
+                  <Text style={styles.muted}>{item.date}</Text>
+                  <Text
+                    style={item.read ? styles.muted : styles.notificationUnread}
+                  >
+                    {item.read ? "Leída" : "Toca para marcar como leída"}
                   </Text>
                 </Pressable>
               ))
             )}
-          </>
+          </View>
         )}
 
         {screen === "help" && (
-          <>
+          <View>
             <Text style={styles.title}>Centro de ayuda</Text>
             {orders.length === 0 ? (
               <Empty
-                text="Necesitas un pedido para crear una solicitud."
-                label="Ir al catálogo"
+                text="Necesitas tener un pedido para crear una solicitud."
+                label="Ver catálogo"
                 onPress={() => setScreen("home")}
               />
             ) : (
               <>
-                <Text style={styles.muted}>Selecciona un pedido</Text>
+                <Text style={styles.sectionTitle}>Pedido relacionado</Text>
                 {orders.map((order) => (
                   <Pressable
                     key={order.code}
                     style={[
-                      styles.addressCard,
-                      supportOrderId === order.code && styles.addressSelected,
+                      styles.chip,
+                      helpOrder === order.code && styles.chipActive,
                     ]}
-                    onPress={() => setSupportOrderId(order.code)}
+                    onPress={() => setHelpOrder(order.code)}
                   >
-                    <Text style={styles.bold}>
-                      {supportOrderId === order.code ? "✓ " : ""}
-                      {order.code} · {order.status}
+                    <Text
+                      style={
+                        helpOrder === order.code
+                          ? styles.white
+                          : styles.chipText
+                      }
+                    >
+                      {order.code}
                     </Text>
                   </Pressable>
                 ))}
-                <Text style={[styles.muted, { marginTop: 10 }]}>Motivo</Text>
-                <View style={styles.wrap}>
-                  {SUPPORT_REASONS.map((reason) => (
-                    <ChoiceChip
+                <Text style={styles.sectionTitle}>Motivo</Text>
+                <View style={styles.row}>
+                  {["Entrega", "Producto", "Otro"].map((reason) => (
+                    <Pressable
                       key={reason}
-                      selected={supportReason === reason}
-                      style={{ marginTop: 8 }}
-                      onPress={() => setSupportReason(reason)}
+                      style={[
+                        styles.chip,
+                        helpReason === reason && styles.chipActive,
+                      ]}
+                      onPress={() => setHelpReason(reason)}
                     >
-                      {reason}
-                    </ChoiceChip>
+                      <Text
+                        style={
+                          helpReason === reason ? styles.white : styles.chipText
+                        }
+                      >
+                        {reason}
+                      </Text>
+                    </Pressable>
                   ))}
                 </View>
                 <TextInput
-                  style={[styles.input, styles.inputMulti, { marginTop: 10 }]}
-                  placeholder="Describe el inconveniente (mínimo 15 caracteres)"
-                  value={supportDescription}
-                  onChangeText={setSupportDescription}
+                  style={[styles.input, styles.multilineInput]}
+                  placeholder="Describe tu solicitud (mínimo 15 caracteres)"
+                  value={helpText}
+                  onChangeText={setHelpText}
                   multiline
                 />
-                <ActionButton onPress={createSupportCase}>
-                  Enviar solicitud
-                </ActionButton>
+                <Pressable style={styles.btn} onPress={createHelpCase}>
+                  <Text style={styles.white}>Enviar solicitud</Text>
+                </Pressable>
               </>
             )}
-            <Text style={[styles.title, { marginTop: 16 }]}>
-              Mis solicitudes
-            </Text>
-            {supportCases.length === 0 ? (
-              <Text style={styles.muted}>Aún no hay solicitudes registradas.</Text>
+            <Text style={styles.sectionTitle}>Mis solicitudes</Text>
+            {helpCases.length === 0 ? (
+              <Text style={styles.muted}>
+                Todavía no tienes casos registrados.
+              </Text>
             ) : (
-              supportCases.map((supportCase) => (
-                <View key={supportCase.id} style={styles.box}>
+              helpCases.map((item) => (
+                <View key={item.code} style={styles.panel}>
                   <Text style={styles.bold}>
-                    {supportCase.id} · {supportCase.orderCode}
+                    {item.code} · {item.status}
                   </Text>
                   <Text style={styles.muted}>
-                    {supportCase.reason} · {supportCase.status}
+                    Pedido {item.order} · {item.reason} · {item.date}
                   </Text>
-                  <Text>{supportCase.description}</Text>
-                  {supportCase.answer ? (
-                    <Text style={styles.muted}>{supportCase.answer}</Text>
+                  <Text>{item.text}</Text>
+                  {item.answer ? (
+                    <Text>{item.answer}</Text>
                   ) : (
-                    <Pressable
-                      onPress={() => simulateSupportReply(supportCase.id)}
-                    >
+                    <Pressable onPress={() => simulateHelpReply(item.code)}>
                       <Text style={styles.link}>Simular respuesta</Text>
                     </Pressable>
                   )}
                 </View>
               ))
             )}
-            <Text style={styles.small}>
-              Las respuestas son ficticias; no se envían a servicios externos.
-            </Text>
-          </>
+          </View>
         )}
 
         {screen === "seller" && (
-          <>
-            <Text style={styles.title}>Panel de vendedor</Text>
-            <Text style={styles.muted}>Registra o edita productos.</Text>
-            <View style={styles.box}>
-              <Text style={styles.bold}>
-                {editingId ? `Editando ${editingId}` : "Nuevo producto"}
-              </Text>
-              <TextInput
-                style={[styles.input, { marginTop: 8 }]}
-                placeholder="Nombre del producto"
-                value={form.nombre}
-                onChangeText={(t) => setForm({ ...form, nombre: t })}
-              />
-              <Text style={styles.muted}>Categoría</Text>
-              <View style={[styles.wrap, { marginTop: 6 }]}>
-                {SELLER_CATEGORIES.map((cat) => (
-                  <ChoiceChip
-                    key={cat}
-                    selected={form.categoria === cat}
-                    style={{ marginBottom: 6 }}
-                    onPress={() => setForm({ ...form, categoria: cat })}
+          <View>
+            <Text style={styles.title}>Panel de vendedor · Demo</Text>
+            <Text style={styles.muted}>
+              Crea o edita productos del catálogo. No se conecta a un servicio
+              externo.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre del producto"
+              value={sellerForm.nombre}
+              onChangeText={(nombre) =>
+                setSellerForm({ ...sellerForm, nombre })
+              }
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Marca"
+              value={sellerForm.marca}
+              onChangeText={(marca) => setSellerForm({ ...sellerForm, marca })}
+            />
+            <View style={styles.row}>
+              {CATEGORIES.slice(1).map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.chip,
+                    sellerForm.categoria === cat && styles.chipActive,
+                  ]}
+                  onPress={() =>
+                    setSellerForm({ ...sellerForm, categoria: cat })
+                  }
+                >
+                  <Text
+                    style={
+                      sellerForm.categoria === cat
+                        ? styles.white
+                        : styles.chipText
+                    }
                   >
                     {cat}
-                  </ChoiceChip>
-                ))}
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="Precio en COP (entero positivo)"
-                keyboardType="numeric"
-                value={form.precio}
-                editable={!editingProduct || !editingProduct.variantes}
-                onChangeText={(t) => setForm({ ...form, precio: t })}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Stock (entero, 0 o más)"
-                keyboardType="numeric"
-                value={form.stock}
-                editable={!editingProduct || !editingProduct.variantes}
-                onChangeText={(t) => setForm({ ...form, stock: t })}
-              />
-              {editingProduct && editingProduct.variantes && (
-                <Text style={styles.small}>
-                  Los precios y existencias de este producto se administran por variante.
-                </Text>
-              )}
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Descripción (mínimo 15 caracteres)"
-                multiline
-                value={form.descripcion}
-                onChangeText={(t) => setForm({ ...form, descripcion: t })}
-              />
-              {formError !== "" && (
-                <Text style={styles.danger}>{formError}</Text>
-              )}
-              <ActionButton onPress={saveProduct}>
-                {editingId ? "Guardar cambios" : "Registrar producto"}
-              </ActionButton>
-              {editingId && (
-                <Pressable onPress={resetForm}>
-                  <Text style={styles.link}>Cancelar edición</Text>
-                </Pressable>
-              )}
-            </View>
-
-            <Text style={[styles.title, { marginTop: 16 }]}>
-              Productos ({products.length})
-            </Text>
-            {products.map((p) => (
-              <View key={p.id} style={styles.sellerRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.bold}>
-                    {p.id} · {p.nombre}
                   </Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Precio en COP"
+              keyboardType="numeric"
+              value={sellerForm.precio}
+              onChangeText={(precio) =>
+                setSellerForm({ ...sellerForm, precio })
+              }
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Stock (entero)"
+              keyboardType="numeric"
+              value={sellerForm.stock}
+              onChangeText={(stock) => setSellerForm({ ...sellerForm, stock })}
+            />
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Descripción"
+              value={sellerForm.descripcion}
+              onChangeText={(descripcion) =>
+                setSellerForm({ ...sellerForm, descripcion })
+              }
+              multiline
+            />
+            <Pressable style={styles.btn} onPress={saveSellerProduct}>
+              <Text style={styles.white}>
+                {editingProductId ? "Guardar cambios" : "Crear producto"}
+              </Text>
+            </Pressable>
+            {editingProductId && (
+              <Pressable
+                onPress={() => {
+                  setEditingProductId(null);
+                  setSellerForm({
+                    nombre: "",
+                    marca: "",
+                    categoria: "Tecnología",
+                    precio: "",
+                    stock: "",
+                    descripcion: "",
+                  });
+                }}
+              >
+                <Text style={styles.link}>Cancelar edición</Text>
+              </Pressable>
+            )}
+            <Text style={styles.sectionTitle}>Productos registrados</Text>
+            {products.map((product) => (
+              <View key={product.id} style={styles.itemRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bold}>{product.nombre}</Text>
                   <Text style={styles.muted}>
-                    {p.categoria} · {cop(p.precio)} · Stock: {p.stock}
+                    {product.id} · {product.categoria}
                   </Text>
                 </View>
-                <Pressable onPress={() => startEdit(p)}>
+                <Pressable
+                  onPress={() => {
+                    setEditingProductId(product.id);
+                    setSellerForm({
+                      nombre: product.nombre,
+                      marca: product.marca || "",
+                      categoria: product.categoria,
+                      precio: String(product.precio),
+                      stock: String(product.stock ?? productStock(product)),
+                      descripcion: product.descripcion || "",
+                    });
+                  }}
+                >
                   <Text style={styles.link}>Editar</Text>
                 </Pressable>
-                {p.variantes ? (
-                  p.variantes.map(
-                    (variant) =>
-                      variant.stock === 0 && (
-                        <Pressable
-                          key={variant.id}
-                          style={styles.restockButton}
-                          onPress={() => simulateRestock(p, variant.id)}
-                        >
-                          <Text style={styles.chipText}>
-                            Reponer {variant.nombre}
-                          </Text>
-                        </Pressable>
-                      ),
-                  )
-                ) : p.stock === 0 ? (
-                  <Pressable
-                    style={styles.restockButton}
-                    onPress={() => simulateRestock(p)}
-                  >
-                    <Text style={styles.chipText}>Simular reposición</Text>
-                  </Pressable>
-                ) : null}
               </View>
             ))}
-            <Pressable onPress={resetAll}>
-              <Text
-                style={[styles.danger, { textAlign: "center", marginTop: 20 }]}
-              >
-                Restablecer datos
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {screen === "order" && selectedOrder && (
-          <>
-            <Text style={styles.title}>Pedido {selectedOrder.code}</Text>
-            <Text style={styles.muted}>Fecha: {selectedOrder.date}</Text>
-            <Text style={styles.statusHeading}>
-              Estado actual: {selectedOrder.status}
-            </Text>
-            <View style={styles.box}>
-              <Text style={styles.bold}>Seguimiento cronológico</Text>
-              {(selectedOrder.timeline || []).map((event, index) => (
-                <Text key={`${event.status}-${index}`} style={styles.muted}>
-                  {event.date} · {event.status}
-                </Text>
-              ))}
-            </View>
-            {["Confirmado", "Preparando", "En camino"].includes(
-              selectedOrder.status,
-            ) ? (
-              <ActionButton onPress={() => advanceOrder(selectedOrder)}>
-                {selectedOrder.status === "En camino"
-                  ? "Simular entrega"
-                  : "Simular avance de entrega"}
-              </ActionButton>
-            ) : (
-              <Text style={styles.muted}>
-                El seguimiento terminó; no se permiten más avances.
-              </Text>
-            )}
-            {["Confirmado", "Preparando"].includes(selectedOrder.status) &&
-              (cancelPrompt ? (
-                <View style={styles.box}>
-                  <Text style={styles.bold}>
-                    ¿Confirmas la cancelación del pedido?
-                  </Text>
-                  <View style={styles.row}>
-                    <ActionButton
-                      small
-                      onPress={() => cancelOrder(selectedOrder)}
-                    >
-                      Sí, cancelar
-                    </ActionButton>
-                    <ActionButton
-                      small
-                      onPress={() => setCancelPrompt(false)}
-                    >
-                      Conservar pedido
-                    </ActionButton>
-                  </View>
-                </View>
-              ) : (
-                <ActionButton onPress={() => setCancelPrompt(true)}>
-                  Solicitar cancelación
-                </ActionButton>
-              ))}
-            {["En camino", "Entregado"].includes(selectedOrder.status) && (
-              <Text style={styles.muted}>
-                No se puede cancelar: el pedido ya inició su despacho.
-              </Text>
-            )}
-            {selectedOrder.status === "Cancelado" && (
-              <Text style={styles.muted}>
-                Pedido cancelado; el inventario fue reintegrado.
-              </Text>
-            )}
-            <OrderSummary {...selectedOrder} />
-            <ActionButton
-              onPress={() => {
-                setSupportOrderId(selectedOrder.code);
-                setScreen("help");
-              }}
-            >
-              Solicitar ayuda con este pedido
-            </ActionButton>
-            <Pressable onPress={() => setScreen("history")}>
-              <Text style={styles.link}>Volver al historial</Text>
-            </Pressable>
-          </>
+          </View>
         )}
       </ScrollView>
 
-      <ScrollView
-        horizontal
-        style={styles.nav}
-        contentContainerStyle={styles.navContent}
-        showsHorizontalScrollIndicator={false}
-      >
-        {TABS.map(([key, label]) => (
+      <View style={styles.nav}>
+        {TABS.map(([key, label, icon]) => (
           <Pressable
             key={key}
             style={styles.tab}
             onPress={() => setScreen(key)}
+            accessibilityRole="button"
+            accessibilityLabel={label}
           >
-            <Text style={[styles.navText, screen === key && styles.navActive]}>
+            <View style={styles.tabIconBox}>
+              <Text style={styles.tabIcon} accessible={false}>
+                {icon}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.navText,
+                (screen === key ||
+                  (key === "more" &&
+                    ["notifications", "help", "seller"].includes(screen))) &&
+                  styles.navActive,
+              ]}
+            >
               {key === "cart" && cartCount > 0
                 ? `${label} (${cartCount})`
-                : key === "compare" && comparison.length > 0
-                  ? `${label} (${comparison.length})`
-                  : key === "notifications" &&
-                      notifications.some((item) => !item.read)
-                    ? `${label} (${notifications.filter((item) => !item.read).length})`
-                    : label}
+                : key === "more" && unreadCount > 0
+                  ? `${label} (${unreadCount})`
+                  : label}
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
-const PRIMARY = "#176b5b";
-const ACCENT = "#258a71";
+const NAVY = "#032354";
+const CYAN = "#00A8B5";
+const CYAN_DARK = "#007E8A";
+const HEADER_BG = "#FFFFFF";
+const HERO_BG = "#E8F6F8";
+const SURFACE_BG = "#F4F8FA";
+const BORDER_COLOR = "#D5E4EA";
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f8f6", paddingTop: 35 },
+  container: { flex: 1, backgroundColor: SURFACE_BG },
   header: {
-    alignItems: "center",
-    backgroundColor: PRIMARY,
     flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 18,
-  },
-  brand: { color: "#fff", fontSize: 20, fontWeight: "700", letterSpacing: 1 },
-  slogan: { color: "#dcebe6", fontSize: 12, marginTop: 3 },
-  logo: {
+    justifyContent: "flex-start",
     alignItems: "center",
-    backgroundColor: ACCENT,
-    borderRadius: 20,
-    color: "#fff",
-    fontWeight: "700",
-    height: 40,
-    lineHeight: 40,
-    textAlign: "center",
-    width: 40,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    backgroundColor: HEADER_BG,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER_COLOR,
   },
+  logoImage: { width: 156, height: 102 },
   toast: {
-    backgroundColor: "#20312c",
-    color: "#fff",
+    backgroundColor: NAVY,
+    color: "#FFFFFF",
+    textAlign: "center",
     fontSize: 13,
     padding: 10,
-    textAlign: "center",
   },
-  body: { flex: 1, padding: 16 },
-  input: {
-    backgroundColor: "#fff",
-    borderColor: "#dce6e0",
-    borderRadius: 11,
-    borderWidth: 1,
-    height: 44,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-  },
-  chip: {
-    backgroundColor: "#edf2ef",
-    borderRadius: 20,
-    marginRight: 8,
-    paddingHorizontal: 13,
+  body: { flex: 1, paddingHorizontal: 16, paddingTop: 0 },
+  hero: {
+    width: "100%",
+    aspectRatio: 11 / 6,
+    backgroundColor: HERO_BG,
+    marginBottom: 18,
     paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: CYAN,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  chipActive: { backgroundColor: PRIMARY },
-  chipText: { color: "#35443e", fontSize: 13 },
-  chipSelectedText: { color: "#fff", fontSize: 13, fontWeight: "600" },
-  row: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-  card: {
-    backgroundColor: "#fff",
-    borderColor: "#e6ede8",
-    borderRadius: 14,
+  heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: NAVY,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  input: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    marginBottom: 12,
-    padding: 12,
-    width: "48%",
+    borderColor: BORDER_COLOR,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    minHeight: 45,
+    marginBottom: 10,
+    color: NAVY,
   },
-  compareSelected: { backgroundColor: PRIMARY },
-  compareAction: { width: "100%" },
-  cardImg: {
-    alignItems: "flex-start",
-    backgroundColor: "#edf5f1",
-    flexDirection: "row",
-    height: 75,
+  multilineInput: { minHeight: 90, textAlignVertical: "top", paddingTop: 12 },
+  chip: {
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: "#E4EFF3",
+    marginRight: 7,
     marginBottom: 8,
-    padding: 8,
-    justifyContent: "space-between",
-    borderRadius: 10,
   },
-  bigImg: {
-    alignItems: "center",
-    backgroundColor: "#edf5f1",
-    borderRadius: 14,
-    height: 140,
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  star: { color: "#d4931a", fontSize: 20 },
-  title: { color: "#1d2b25", fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  bold: { color: "#1d2b25", fontWeight: "700" },
-  price: { color: PRIMARY, fontWeight: "700" },
-  muted: { color: "#65736d", fontSize: 13 },
-  small: { color: "#52615a", fontSize: 11 },
-  green: { color: "#2d7957", fontSize: 12, marginTop: 3 },
-  red: { color: "#b54753", fontSize: 12, fontWeight: "700", marginTop: 3 },
-  danger: { color: "#b54753", fontSize: 13 },
-  link: { color: PRIMARY, fontWeight: "600", marginTop: 8, textAlign: "center" },
-  note: { color: "#2d7957", marginTop: 6, textAlign: "center" },
-  empty: { alignItems: "center", marginTop: 28, padding: 16 },
-  btn: {
-    alignItems: "center",
-    backgroundColor: ACCENT,
-    borderRadius: 11,
-    justifyContent: "center",
-    marginTop: 10,
-    minHeight: 46,
-    paddingHorizontal: 14,
-  },
-  btnOff: { backgroundColor: "#a9b5af" },
-  buttonText: { color: "#fff", fontWeight: "700", textAlign: "center" },
-  white: { color: "#fff", fontWeight: "700" },
-  itemRow: {
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderColor: "#e6ede8",
-    borderRadius: 12,
-    borderWidth: 1,
+  chipActive: { backgroundColor: NAVY },
+  chipText: { fontSize: 12, color: NAVY, fontWeight: "600" },
+  row: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-    padding: 12,
-  },
-  sellerRow: {
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderColor: "#e6ede8",
-    borderRadius: 12,
-    borderWidth: 1,
+    flexWrap: "wrap",
+    marginBottom: 10,
+  },
+  grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginTop: 8,
-    padding: 12,
+    justifyContent: "space-between",
   },
-  restockButton: { backgroundColor: "#edf2ef", borderRadius: 9, margin: 4, padding: 8 },
-  qtyBtn: {
-    alignItems: "center",
-    backgroundColor: "#edf2ef",
-    borderRadius: 8,
-    height: 32,
+  card: {
+    width: "48.2%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    elevation: 2,
+    shadowColor: NAVY,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  cardImg: {
+    height: 132,
+    backgroundColor: "#E6F2F5",
+    borderRadius: 11,
+    marginBottom: 10,
+    padding: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  imagePlaceholderText: {
+    fontSize: 9,
+    color: "#6F8B99",
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  bigImg: {
+    height: 210,
+    backgroundColor: HERO_BG,
+    borderRadius: 18,
     justifyContent: "center",
-    width: 32,
-  },
-  qty: { fontWeight: "700", marginHorizontal: 10 },
-  box: {
-    backgroundColor: "#fff",
-    borderColor: "#e6ede8",
-    borderRadius: 13,
+    alignItems: "center",
+    marginTop: 14,
+    marginBottom: 16,
     borderWidth: 1,
-    marginTop: 12,
-    padding: 14,
+    borderColor: BORDER_COLOR,
   },
-  addressCard: {
-    backgroundColor: "#fff",
-    borderColor: "#e0e8e3",
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 8,
-    padding: 13,
-  },
-  addressSelected: { borderColor: PRIMARY, borderWidth: 2 },
-  question: {
-    borderTopColor: "#e3ebe6",
-    borderTopWidth: 1,
+  star: { fontSize: 22, color: "#E5A000" },
+  ratingStar: { fontSize: 28, color: "#CBD5DB", marginRight: 5 },
+  ratingStarActive: { color: "#E5A000" },
+  title: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: NAVY,
     marginTop: 10,
-    paddingTop: 10,
+    marginBottom: 6,
   },
-  compareRow: { flexDirection: "row", alignItems: "stretch" },
-  compareCard: {
-    backgroundColor: "#fff",
-    borderColor: "#e6ede8",
+  bold: { fontWeight: "800", color: NAVY },
+  price: { color: CYAN_DARK, fontWeight: "900", marginTop: 4 },
+  muted: { color: "#5C7685", fontSize: 12 },
+  small: { fontSize: 10, color: NAVY, fontWeight: "700" },
+  green: { color: "#16845B", fontSize: 12, marginTop: 4, fontWeight: "700" },
+  red: { color: "#C44545", fontSize: 12, marginTop: 4, fontWeight: "800" },
+  danger: { color: "#C44545", fontSize: 13, fontWeight: "700" },
+  link: {
+    color: CYAN_DARK,
+    textAlign: "center",
+    marginTop: 10,
+    fontWeight: "800",
+  },
+  note: { color: "#16845B", textAlign: "center", marginTop: 8 },
+  empty: { alignItems: "center", marginTop: 32, padding: 18 },
+  btn: {
+    backgroundColor: CYAN,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  btnOff: { backgroundColor: "#AEBBC1" },
+  white: { color: "#FFFFFF", fontWeight: "800" },
+  secondaryBtn: {
+    backgroundColor: "#E4F5F7",
+    borderRadius: 10,
+    padding: 11,
+    alignItems: "center",
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#B7E2E7",
+  },
+  secondaryBtnText: { color: CYAN_DARK, fontWeight: "800", fontSize: 12 },
+  dangerBtn: {
+    backgroundColor: "#FCE9E8",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  dangerBtnText: { color: "#B42318", fontWeight: "800" },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 13,
+    borderRadius: 13,
+    marginTop: 9,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  qtyBtn: {
+    backgroundColor: "#E4EFF3",
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  qty: { marginHorizontal: 10, fontWeight: "900", color: NAVY },
+  box: {
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 13,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  panel: {
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 15,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  questionCard: {
+    backgroundColor: SURFACE_BG,
+    padding: 11,
+    borderRadius: 10,
+    marginTop: 9,
+  },
+  relatedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8F0F4",
+  },
+  relatedImagePlaceholder: {
+    width: 62,
+    height: 58,
+    backgroundColor: "#E6F2F5",
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 12,
+  },
+  timelineDot: { color: CYAN, marginRight: 10, fontSize: 16 },
+  menuOption: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 15,
+    marginTop: 9,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  notificationCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 9,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+  },
+  unreadCard: { borderColor: CYAN, backgroundColor: "#EFFBFC" },
+  notificationUnread: {
+    color: CYAN_DARK,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 5,
+  },
+  nav: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderColor: BORDER_COLOR,
+    backgroundColor: "#FFFFFF",
+  },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+  },
+  tabIconBox: {
+    width: 30,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  tabIcon: {
+    width: 30,
+    textAlign: "center",
+    fontSize: 20,
+    lineHeight: 24,
+    color: CYAN_DARK,
+  },
+  navText: {
+    maxWidth: "100%",
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#688290",
+    textAlign: "center",
+  },
+  navActive: { color: CYAN_DARK },
+  variant: {
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#EDF4F7",
+    marginTop: 7,
+  },
+  compareChip: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#E4EFF3",
+    marginTop: 8,
+  },
+  variantActive: { backgroundColor: NAVY },
+  primaryBox: { borderColor: CYAN, borderWidth: 2 },
+  compareColumn: {
+    width: 180,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    marginRight: 10,
     borderRadius: 12,
     borderWidth: 1,
-    marginRight: 10,
-    padding: 14,
-    width: 190,
+    borderColor: BORDER_COLOR,
   },
-  unreadNotification: { borderLeftColor: ACCENT, borderLeftWidth: 4 },
-  statusHeading: { color: PRIMARY, fontSize: 16, fontWeight: "700", marginTop: 8 },
-  nav: {
-    backgroundColor: "#fff",
-    borderColor: "#e0e8e3",
-    borderTopWidth: 1,
-    flexGrow: 0,
-    flexShrink: 0,
-    height: 50,
-  },
-  navContent: { alignItems: "center", flexDirection: "row" },
-  tab: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: 50,
-    paddingHorizontal: 14,
-  },
-  navText: { color: "#65736d", fontSize: 12, fontWeight: "600" },
-  navActive: { color: PRIMARY },
-  discount: { color: "#2d7957", fontWeight: "600" },
-  starBig: { color: "#d4931a", fontSize: 30, marginRight: 6 },
-  btnSmall: {
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: ACCENT,
-    borderRadius: 10,
-    minHeight: 40,
-    paddingHorizontal: 14,
-  },
-  wrap: { flexDirection: "row", flexWrap: "wrap" },
-  inputMulti: { height: 76, paddingTop: 10, textAlignVertical: "top" },
 });

@@ -10,8 +10,8 @@ import {
   Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import logo from "./assets/Logo WindRose.png";
-import hero from "./assets/WindRose_hero.png";
+import logo from "./assets/Logo_WindRose.png";
+import hero from "./assets/Hero_WindRose.png";
 
 const INITIAL_PRODUCTS = [
   {

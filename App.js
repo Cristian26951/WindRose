@@ -8,10 +8,26 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import logo from "./assets/Logo_WindRose.png";
 import hero from "./assets/Hero_WindRose.png";
+
+const PRODUCT_IMAGES = {
+  "PROD-001": require("./assets/imagen_consola.jpg"),
+  "PROD-002": require("./assets/imagen_auricular.jpg"),
+  "PROD-003": require("./assets/imagen_tapetes.jpg"),
+  "PROD-004": require("./assets/imagen_nevera.png"),
+  "PROD-005": require("./assets/imagen_aspiradora.jpg"),
+  "PROD-006": require("./assets/imagen_fundasasiento.jpg"),
+  "PROD-007": require("./assets/imagen_smartwatch.jpg"),
+  "PROD-008": require("./assets/imagen_licuadora.jpg"),
+  "PROD-009": require("./assets/imagen_monitorfre.jpg"),
+  "PROD-010": require("./assets/imagen_lavadora.jpg"),
+  "PROD-011": require("./assets/imagen_mancuernas.jpg"),
+  "PROD-012": require("./assets/imagen_bandaselasticas.jpg"),
+};
 
 const INITIAL_PRODUCTS = [
   {
@@ -565,7 +581,7 @@ export default function App() {
           : item,
       ),
     );
-    notify("Respuesta ficticia agregada al caso");
+    notify("Respuesta agregada al caso");
   };
 
   const saveAddress = () => {
@@ -617,9 +633,9 @@ export default function App() {
     if (!selectedAddressId) return notify("Selecciona una dirección");
     if (!shippingMode) return notify("Selecciona una modalidad de envío");
     if (!buyer.name.trim())
-      return notify("Ingresa un nombre ficticio para el pedido");
+      return notify("Ingresa un nombre para el pedido");
     if (!buyer.phone.trim())
-      return notify("Ingresa un teléfono ficticio para el pedido");
+      return notify("Ingresa un teléfono para el pedido");
     setScreen("review");
   };
 
@@ -693,7 +709,7 @@ export default function App() {
       `order-${order.code}-Confirmado`,
       `Pedido ${order.code}: Confirmado`,
     );
-    notify(`Pedido ${order.code} confirmado · simulación sin cobro real`);
+    notify(`Pedido ${order.code} confirmado · sin cobro real`);
   };
 
   const addNotification = (eventId, message) => {
@@ -730,7 +746,7 @@ export default function App() {
             {
               status: next,
               date: new Date().toLocaleString(),
-              detail: `Avance simulado a ${next}`,
+              detail: `Avance a ${next}`,
             },
           ],
         };
@@ -751,84 +767,75 @@ export default function App() {
     if (order.status === "Cancelado") {
       return notify("El pedido ya está cancelado");
     }
-    Alert.alert(
-      "Cancelar compra",
-      "¿Confirmas la cancelación y el reintegro de stock?",
-      [
-        { text: "No" },
-        {
-          text: "Sí, cancelar",
-          onPress: () => {
-            setOrders((previous) =>
-              previous.map((item) =>
-                item.code !== code
-                  ? item
-                  : {
-                      ...item,
-                      status: "Cancelado",
-                      history: [
-                        ...item.history,
-                        {
-                          status: "Cancelado",
-                          date: new Date().toLocaleString(),
-                          detail: "Compra cancelada y stock restituido",
-                        },
-                      ],
-                    },
-              ),
-            );
-            setProducts((previous) =>
-              previous.map((product) => {
-                const lines = order.items.filter(
-                  (item) => item.productId === product.id,
-                );
-                if (!lines.length) return product;
-                if (product.variantes) {
-                  return {
-                    ...product,
-                    variantes: product.variantes.map((variant) => {
-                      const line = lines.find(
-                        (item) => item.variantId === variant.id,
-                      );
-                      return line
-                        ? { ...variant, stock: variant.stock + line.qty }
-                        : variant;
-                    }),
-                  };
-                }
-                return {
-                  ...product,
-                  stock:
-                    product.stock +
-                    lines.reduce((sum, item) => sum + item.qty, 0),
-                };
-              }),
-            );
-            setSelectedOrder((previous) =>
-              previous && previous.code === code
-                ? {
-                    ...previous,
-                    status: "Cancelado",
-                    history: [
-                      ...previous.history,
-                      {
-                        status: "Cancelado",
-                        date: new Date().toLocaleString(),
-                        detail: "Compra cancelada y stock restituido",
-                      },
-                    ],
-                  }
-                : previous,
-            );
-            addNotification(
-              `order-${code}-Cancelado`,
-              `Pedido ${code}: Cancelado`,
-            );
-            notify("Compra cancelada e inventario restituido");
-          },
-        },
-      ],
-    );
+    const confirmCancellation = () => {
+      const cancellationEvent = {
+        status: "Cancelado",
+        date: new Date().toLocaleString(),
+        detail: "Compra cancelada y stock restituido",
+      };
+      setOrders((previous) =>
+        previous.map((item) =>
+          item.code !== code
+            ? item
+            : {
+                ...item,
+                status: "Cancelado",
+                history: [...item.history, cancellationEvent],
+              },
+        ),
+      );
+      setProducts((previous) =>
+        previous.map((product) => {
+          const lines = order.items.filter(
+            (item) => item.productId === product.id,
+          );
+          if (!lines.length) return product;
+          if (product.variantes) {
+            const variantes = product.variantes.map((variant) => {
+              const line = lines.find(
+                (item) => item.variantId === variant.id,
+              );
+              return line
+                ? { ...variant, stock: variant.stock + line.qty }
+                : variant;
+            });
+            return {
+              ...product,
+              variantes,
+              stock: variantes.reduce((sum, variant) => sum + variant.stock, 0),
+            };
+          }
+          return {
+            ...product,
+            stock:
+              product.stock + lines.reduce((sum, item) => sum + item.qty, 0),
+          };
+        }),
+      );
+      setSelectedOrder((previous) =>
+        previous && previous.code === code
+          ? {
+              ...previous,
+              status: "Cancelado",
+              history: [...previous.history, cancellationEvent],
+            }
+          : previous,
+      );
+      addNotification(`order-${code}-Cancelado`, `Pedido ${code}: Cancelado`);
+      notify("Compra cancelada e inventario restituido");
+    };
+
+    const confirmationMessage =
+      "¿Confirmas la cancelación y el reintegro de stock?";
+    if (Platform.OS === "web") {
+      if (window.confirm(confirmationMessage)) confirmCancellation();
+      return;
+    }
+
+    Alert.alert("Cancelar compra", confirmationMessage, [
+      { text: "No" },
+      { text: "Sí, cancelar", onPress: confirmCancellation },
+    ]);
   };
 
   const sendQuestion = () => {
@@ -859,7 +866,7 @@ export default function App() {
           ? {
               ...question,
               status: "Respondido",
-              answer: "Respuesta de demostración simulada",
+              answer: "Respuesta agregada",
             }
           : question,
       ),
@@ -904,7 +911,7 @@ export default function App() {
             changed = true;
             addNotification(
               `restock-${product.id}-${Date.now()}`,
-              `Reposición simulada: ${product.nombre}`,
+              `Reposición: ${product.nombre}`,
             );
             return { ...product, stock: 5 };
           }
@@ -920,7 +927,7 @@ export default function App() {
               changed = true;
               addNotification(
                 `restock-${variant.id}-${Date.now()}`,
-                `Reposición simulada: ${product.nombre} - ${variant.nombre}`,
+                `Reposición: ${product.nombre} - ${variant.nombre}`,
               );
               return { ...variant, stock: 5 };
             }
@@ -931,7 +938,7 @@ export default function App() {
     );
     notify(
       changed
-        ? "Reposición simulada completada"
+        ? "Reposición completada"
         : "No hay suscripciones pendientes",
     );
   };
@@ -1096,20 +1103,29 @@ export default function App() {
                     onPress={() => openDetail(p.id)}
                   >
                     <View style={styles.cardImg}>
-                      <Text style={styles.imagePlaceholderText}>
-                        ESPACIO PARA IMAGEN
-                      </Text>
-                      <Text style={styles.small}>{p.categoria}</Text>
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          toggleFav(p.id);
-                        }}
-                      >
-                        <Text style={styles.star}>
-                          {favorites.includes(p.id) ? "★" : "☆"}
+                      {PRODUCT_IMAGES[p.id] ? (
+                        <Image
+                          source={PRODUCT_IMAGES[p.id]}
+                          style={styles.cardProductImage}
+                          resizeMode="cover"
+                          accessibilityLabel={p.nombre}
+                        />
+                      ) : null}
+                      <View style={styles.cardImageOverlay}>
+                        <Text style={styles.imageCategoryLabel}>
+                          {p.categoria}
                         </Text>
-                      </Pressable>
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            toggleFav(p.id);
+                          }}
+                        >
+                          <Text style={styles.star}>
+                            {favorites.includes(p.id) ? "★" : "☆"}
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                     <Text numberOfLines={1} style={styles.bold}>
                       {p.nombre}
@@ -1150,7 +1166,22 @@ export default function App() {
         {screen === "detail" && current && (
           <>
             <View style={styles.bigImg}>
-              <Text style={styles.bold}>{current.categoria}</Text>
+              {PRODUCT_IMAGES[current.id] ? (
+                <Image
+                  source={PRODUCT_IMAGES[current.id]}
+                  style={styles.detailProductImage}
+                  resizeMode="cover"
+                  accessibilityLabel={current.nombre}
+                />
+              ) : null}
+              <Text
+                style={[
+                  styles.imageCategoryLabel,
+                  styles.detailImageCategory,
+                ]}
+              >
+                {current.categoria}
+              </Text>
             </View>
             <View style={styles.row}>
               <Text style={[styles.title, { flex: 1 }]}>{current.nombre}</Text>
@@ -1271,7 +1302,7 @@ export default function App() {
               </View>
               <Pressable style={styles.secondaryBtn} onPress={saveRating}>
                 <Text style={styles.secondaryBtnText}>
-                  Guardar valoración ficticia
+                  Guardar valoración
                 </Text>
               </Pressable>
             </View>
@@ -1302,7 +1333,7 @@ export default function App() {
                     <Pressable
                       onPress={() => demoAnswer(current.id, question.id)}
                     >
-                      <Text style={styles.link}>Simular respuesta</Text>
+                      <Text style={styles.link}>Responder</Text>
                     </Pressable>
                   )}
                 </View>
@@ -1338,7 +1369,14 @@ export default function App() {
                       onPress={() => openDetail(item.id)}
                     >
                       <View style={styles.relatedImagePlaceholder}>
-                        <Text style={styles.imagePlaceholderText}>IMAGEN</Text>
+                        {PRODUCT_IMAGES[item.id] ? (
+                          <Image
+                            source={PRODUCT_IMAGES[item.id]}
+                            style={styles.relatedProductImage}
+                            resizeMode="cover"
+                            accessibilityLabel={item.nombre}
+                          />
+                        ) : null}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.bold}>{item.nombre}</Text>
@@ -1490,7 +1528,7 @@ export default function App() {
           <>
             <Text style={styles.title}>Dirección y envío</Text>
             <Text style={[styles.muted, { marginBottom: 10 }]}>
-              Usa datos ficticios para esta simulación.
+              Ingresa los datos de envío.
             </Text>
             {addresses.map((address) => (
               <View
@@ -1534,7 +1572,7 @@ export default function App() {
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Alias ficticio"
+              placeholder="Alias"
               value={addressForm.alias}
               onChangeText={(alias) =>
                 setAddressForm({ ...addressForm, alias })
@@ -1567,7 +1605,7 @@ export default function App() {
             </View>
             <TextInput
               style={styles.input}
-              placeholder="Referencia ficticia de entrega"
+              placeholder="Referencia de entrega"
               value={addressForm.reference}
               onChangeText={(reference) =>
                 setAddressForm({ ...addressForm, reference })
@@ -1577,7 +1615,7 @@ export default function App() {
               <Text style={styles.white}>Guardar dirección</Text>
             </Pressable>
             <Text style={[styles.title, { marginTop: 12 }]}>
-              Datos ficticios del comprador
+              Datos del comprador
             </Text>
             <TextInput
               style={styles.input}
@@ -1587,7 +1625,7 @@ export default function App() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Teléfono ficticio"
+              placeholder="Teléfono"
               keyboardType="phone-pad"
               value={buyer.phone}
               onChangeText={(phone) => setBuyer({ ...buyer, phone })}
@@ -1674,7 +1712,7 @@ export default function App() {
               </Text>
             )}
             <Text style={styles.muted}>
-              La compra es una simulación académica, sin cobro real.
+              Prueba de compra académica, sin cobro real.
             </Text>
             <Pressable style={styles.btn} onPress={confirmPurchase}>
               <Text style={styles.white}>Confirmar compra</Text>
@@ -1747,7 +1785,7 @@ export default function App() {
                   onPress={() => advanceOrder(selectedOrder.code)}
                 >
                   <Text style={styles.secondaryBtnText}>
-                    Simular avance de entrega
+                    Avanzar entrega
                   </Text>
                 </Pressable>
               )}
@@ -1763,7 +1801,7 @@ export default function App() {
               )}
             </View>
             <Text style={styles.note}>
-              Compra simulada registrada correctamente.
+              Compra registrada correctamente.
             </Text>
             <Pressable onPress={() => setScreen("history")}>
               <Text style={styles.link}>Volver al historial</Text>
@@ -1801,7 +1839,7 @@ export default function App() {
               </Text>
               <Pressable style={styles.secondaryBtn} onPress={restockDemo}>
                 <Text style={styles.secondaryBtnText}>
-                  Simular reposición de inventario
+                  Reponer inventario
                 </Text>
               </Pressable>
             </View>
@@ -1924,7 +1962,7 @@ export default function App() {
                     <Text>{item.answer}</Text>
                   ) : (
                     <Pressable onPress={() => simulateHelpReply(item.code)}>
-                      <Text style={styles.link}>Simular respuesta</Text>
+                      <Text style={styles.link}>Responder</Text>
                     </Pressable>
                   )}
                 </View>
@@ -2193,27 +2231,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#E6F2F5",
     borderRadius: 11,
     marginBottom: 10,
+    position: "relative",
+    overflow: "hidden",
+  },
+  cardProductImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
+  cardImageOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     padding: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
-  imagePlaceholderText: {
-    fontSize: 9,
-    color: "#6F8B99",
-    fontWeight: "800",
-    letterSpacing: 0.5,
+  imageCategoryLabel: {
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    fontSize: 10,
+    color: NAVY,
+    fontWeight: "700",
   },
   bigImg: {
     height: 210,
     backgroundColor: HERO_BG,
     borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
     marginTop: 14,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: BORDER_COLOR,
+    position: "relative",
+    overflow: "hidden",
+  },
+  detailProductImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
+  detailImageCategory: {
+    position: "absolute",
+    top: 10,
+    left: 10,
   },
   star: { fontSize: 22, color: "#E5A000" },
   ratingStar: { fontSize: 28, color: "#CBD5DB", marginRight: 5 },
@@ -2323,6 +2391,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
+    overflow: "hidden",
+  },
+  relatedProductImage: {
+    width: "100%",
+    height: "100%",
   },
   timelineRow: {
     flexDirection: "row",
